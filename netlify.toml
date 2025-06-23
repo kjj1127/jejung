@@ -1,0 +1,9 @@
+# netlify.toml
+
+[build]
+  command = "npm run build" # Next.js 프로젝트를 빌드하는 명령어
+  publish = ".next"         # Next.js의 빌드 결과물(생성된 HTML, CSS, JS 파일)이 있는 폴더
+
+# Next.js Build Plugin을 명시적으로 추가하여 Netlify가 Next.js를 더 잘 이해하도록 합니다.
+[[plugins]]
+package = "@netlify/plugin-nextjs"
