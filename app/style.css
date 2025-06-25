@@ -1,0 +1,18 @@
+body {font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: #f0f0f0; margin: 0; overflow: unset;}
+.fixed-header {position: fixed; top: 8vh; left: 50%; transform: translateX(-50%); z-index: 1000;}
+.gnb {display: flex; align-items: center; background-color: #1c1c1e; padding: 10px 15px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);}
+.logo {padding: 0 15px; margin-right: 20px; color: #fff; text-decoration: none; font-weight: bold; font-size: 18px;}
+.nav-links {position: relative; display: flex; list-style: none; margin: 0; padding: 0;}
+.nav-links li {cursor: pointer;}
+.nav-links li a {display: block; padding: 15px 30px; text-decoration: none; color: #ffffff; font-weight: 500; font-size: 16px; position: relative; z-index: 2; transition: color 0.3s ease-in-out;}
+.nav-links li.active a {color: #1c1c1e;}
+.highlighter {position: absolute; top: 0; left: 0; height: 100%; background-color: #ffffff; border-radius: 40px; z-index: 1; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);}
+.contents-wrap {width: 90%; max-width: 1200px; height: 90vh; margin: 5vh auto 0; overflow-y: scroll; scroll-behavior: smooth; position: relative; scrollbar-width: none; border: 2px solid #000; border-radius: 50px; box-shadow: 0 0 20px 10px #00000022;}
+.contents-wrap::-webkit-scrollbar {display: none;}
+.contents-wrap section {height: 100%; display: flex; justify-content: center; align-items: center; border-bottom: 1px solid #ddd; flex-shrink: 0;}
+.contents-wrap section:last-child {border-bottom: none;}
+.contents-wrap section h1 {font-size: 5rem; color: #333;}
+#work {background-color: #e3f2fd;}
+#services {background-color: #e8f5e9;}
+#about {background-color: #f3e5f5;}
+#contact {background-color: #fff3e0;}
