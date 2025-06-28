@@ -35,6 +35,16 @@ function App() {
   };
   
   useEffect(() => {
+
+    const header = document.querySelector('header');
+    let gnb = document.querySelector('.gnb');
+    if (header) {
+      header.classList.add('loaded');
+      setTimeout(() => {
+        gnb.style.opacity = '1';
+      }, 700);
+    }
+
     const scrollContainer = contentsWrapRef.current;
     if (!scrollContainer) return;
 
@@ -138,5 +148,6 @@ const Highlighter = ({ visualActiveSection }) => {
 
     return <div className="highlighter" ref={highlighterRef}></div>;
 };
+
 
 export default App;
