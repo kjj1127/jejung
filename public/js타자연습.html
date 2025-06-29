@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript 구문 학습 타자연습</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic+Coding&family=Noto+Sans+KR:wght@400;700&display=swap');
+        .main-container {width: 90%; max-width: 1100px; margin: 100px auto 0; display: flex; flex-direction: column; gap: 20px;}
+        #stats-bar {display: flex; justify-content: space-around; background-color: #fff; padding: 15px 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); text-align: center;}
+        .stat-item {flex: 1; border-right: 1px solid #e0e0e0; padding: 0 10px;}
+        .stat-item:last-child {border-right: none;}
+        .stat-item h3 {margin: 0 0 5px 0; font-size: 0.9em; color: #666; white-space: nowrap;}
+        .stat-item span {font-size: 1.5em; font-weight: 700; color: #007bff; font-family: 'Nanum Gothic Coding', monospace;}
+        #stat-total-time {color: #dc3545;}
+        .typing-container {background-color: #fff; padding: 30px 40px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); text-align: center;}
+        h1 {color: #333; margin-top: 0; margin-bottom: 25px;}
+        #explanation-box {background-color: #e9f5ff; color: #31708f; border: 1px solid #bce8f1; padding: 15px; margin-bottom: 25px; border-radius: 8px; text-align: left; line-height: 1.6; font-size: 1.0em;}
+        #sentence-display {font-family: 'Nanum Gothic Coding', monospace; font-size: 1.6em; min-height: 1.6em; line-height: 1.6; margin-bottom: 20px; padding: 15px; background-color: #e9e9e9; border-radius: 5px; text-align: left; white-space: pre-wrap; word-break: break-all;}
+        #typing-input {width: 100%; padding: 12px; font-size: 1.5em; border: 2px solid #ddd; border-radius: 5px; margin-bottom: 20px; outline: none; transition: border-color 0.3s ease; font-family: 'Nanum Gothic Coding', monospace; box-sizing: border-box;}
+        #typing-input:focus {border-color: #007bff;}
+        #feedback {min-height: 1.5em; margin-bottom: 15px; font-size: 1.1em; font-weight: bold;}
+        .typed {color: #28a745;}
+        .incorrect {color: #dc3545; background-color: #f8d7da;}
+        .current-char {background-color: #fff3cd; border-radius: 3px;}
+        #restart-button {background-color: #007bff; color: white; border: none; padding: 12px 25px; font-size: 1.1em; border-radius: 5px; cursor: pointer; transition: background-color 0.3s ease; font-weight: 700;}
+        #restart-button:hover {background-color: #0056b3;}
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div id="stats-bar">
+            <div class="stat-item">
+                <h3>최근 타수</h3>
+                <span id="stat-cpm">0</span> 타/분
+            </div>
+            <div class="stat-item">
+                <h3>평균 타수</h3>
+                <span id="stat-avg-cpm">0</span> 타/분
+            </div>
+            <div class="stat-item">
+                <h3>이전 문장 시간</h3>
+                <span id="stat-sentence-time">0.0</span> 초
+            </div>
+            <div class="stat-item">
+                <h3>총 진행 시간</h3>
+                <span id="stat-total-time">0.0</span> 초
+            </div>
+        </div>
+
+        <div class="typing-container">
+            <h1>JavaScript 구문 학습</h1>
+            <div id="explanation-box">여기에 현재 코드에 대한 설명이 표시됩니다.</div>
+            <div id="sentence-display"></div>
+            <input type="text" id="typing-input" autofocus autocomplete="off">
+            <div id="feedback"></div>
+            <button id="restart-button">다른 문장으로 시작</button>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // [변경] 연습 문장 대폭 추가
+        const allSentences = [
+            { sentence: "console.log('Hello, JavaScript!');", explanation: "콘솔(개발자 도구)에 'Hello, JavaScript!'라는 문자열을 출력합니다. 가장 기본적인 디버깅 방법입니다." },
+            { sentence: "const message = 'Welcome to JS Typing!';", explanation: "'message'라는 이름의 상수를 선언하고 문자열 값을 할당합니다. const로 선언된 변수는 재할당할 수 없습니다." },
+            { sentence: "let count = 0;", explanation: "'count'라는 변수를 선언하고 초기값으로 0을 할당합니다. let으로 선언된 변수는 값을 변경할 수 있습니다." },
+            { sentence: "function greet(name) { return `Hello, ${name}!`; }", explanation: "이름(name)을 인자로 받아 인사말을 반환하는 'greet' 함수를 정의합니다. 백틱(`)을 사용한 템플릿 리터럴 방식입니다." },
+            { sentence: "document.getElementById('myElement').textContent = 'Updated';", explanation: "HTML에서 ID가 'myElement'인 요소를 찾아 그 안의 텍스트 내용을 'Updated'로 변경합니다." },
+            { sentence: "document.querySelector('.myClass').addEventListener('click', () => console.log('Clicked!'));", explanation: "CSS 선택자 '.myClass'에 해당하는 첫 번째 요소를 찾아, 클릭 이벤트가 발생했을 때 콘솔에 'Clicked!'를 출력하도록 이벤트 리스너를 추가합니다." },
+            { sentence: "const numbers = [1, 2, 3, 4, 5];", explanation: "숫자 1부터 5까지를 요소로 가지는 배열 'numbers'를 생성합니다." },
+            { sentence: "const evens = numbers.filter(n => n % 2 === 0);", explanation: "[신규] numbers 배열에서 짝수만 걸러내어 새로운 배열을 반환하는 `filter` 메서드입니다." },
+            { sentence: "const user = users.find(u => u.id === 1);", explanation: "[신규] users 배열에서 id가 1인 첫 번째 사용자를 찾아 반환하는 `find` 메서드입니다." },
+            { sentence: "const doubled = numbers.map(num => num * 2);", explanation: "배열의 각 요소에 2를 곱하여 새로운 배열 'doubled'를 생성합니다. map은 새로운 배열을 반환합니다." },
+            { sentence: "const sum = numbers.reduce((acc, curr) => acc + curr, 0);", explanation: "배열의 모든 요소를 더한 누적값(sum)을 계산합니다. reduce는 배열을 하나의 값으로 축소합니다." },
+            { sentence: "const { name, age } = user;", explanation: "[신규] user 객체에서 name과 age 속성을 추출하여 같은 이름의 상수로 선언합니다. (객체 디스트럭처링)" },
+            { sentence: "const [first, , third] = elements;", explanation: "[신규] 배열의 첫 번째와 세 번째 요소를 각각 first와 third 상수에 할당합니다. (배열 디스트럭처링)" },
+            { sentence: "const newArr = [...oldArr, 4, 5];", explanation: "[신규] 기존 배열(oldArr)의 모든 요소를 펼쳐 포함하는 새로운 배열을 생성합니다. (전개 구문)" },
+            { sentence: "const street = user.address?.street;", explanation: "[신규] user.address가 null이나 undefined가 아닐 경우에만 street 속성에 접근합니다. (옵셔널 체이닝)" },
+            { sentence: "const port = process.env.PORT ?? 3000;", explanation: "[신규] 왼쪽 값이 null 또는 undefined일 경우에만 오른쪽 값(3000)을 기본값으로 사용합니다. (null 병합 연산자)" },
+            { sentence: "try { riskyOperation(); } catch (error) { console.error(error); }", explanation: "[신규] 오류가 발생할 수 있는 코드를 try 블록에서 실행하고, 오류 발생 시 catch 블록에서 처리합니다." },
+            { sentence: "if (isValid) { console.log('Valid data.'); } else { alert('Invalid!'); }", explanation: "'isValid' 변수가 true이면 콘솔에 로그를, false이면 경고창을 띄우는 조건문입니다." },
+            { sentence: "for (const item of iterable) { console.log(item); }", explanation: "[신규] 배열이나 문자열 등 반복 가능한(iterable) 객체의 각 아이템을 순회하는 for...of 반복문입니다." },
+            { sentence: "class Person { constructor(name) { this.name = name; } }", explanation: "이름(name)을 속성으로 갖는 'Person' 클래스를 정의합니다. constructor는 객체 생성 시 호출되는 생성자 함수입니다." },
+            { sentence: "const user = new Person('Alice');", explanation: "'Person' 클래스의 인스턴스(객체)를 생성하여 'user' 상수에 할당합니다." },
+            { sentence: "new Promise((resolve) => setTimeout(() => resolve('Done'), 1000));", explanation: "1초 후에 'Done'이라는 결과로 성공(resolve)하는 Promise 객체를 생성합니다. 비동기 작업을 처리할 때 사용됩니다." },
+            { sentence: "Promise.all([p1, p2]).then(values => console.log(values));", explanation: "[신규] 배열 안의 모든 Promise가 완료될 때까지 기다린 후, 모든 결과를 배열로 받아 처리합니다." },
+            { sentence: "async function fetchData() { const data = await fetch('/api/data'); }", explanation: "서버 API로부터 데이터를 비동기적으로 가져오는 'fetchData' 함수입니다. async/await는 비동기 코드를 동기식처럼 작성하게 해줍니다." },
+            { sentence: "const newDiv = document.createElement('div');", explanation: "[신규] 새로운 'div' HTML 요소를 메모리에 생성합니다. 아직 화면에 보이진 않습니다." },
+            { sentence: "element.classList.add('active');", explanation: "[신규] 지정된 HTML 요소의 클래스 목록에 'active'를 추가하여 스타일을 변경할 수 있습니다." },
+            { sentence: "setInterval(() => console.log('Tick'), 1000);", explanation: "[신규] 1000밀리초(1초)마다 주기적으로 함수를 실행합니다. `setTimeout`과 달리 멈추기 전까지 계속 실행됩니다." },
+            { sentence: "setTimeout(() => { console.log('Delayed message'); }, 2000);", explanation: "2000밀리초(2초) 후에 주어진 함수를 실행하여 콘솔에 메시지를 출력합니다." },
+            { sentence: "localStorage.setItem('username', 'jsUser');", explanation: "웹 브라우저의 로컬 스토리지에 'username'이라는 키로 'jsUser'라는 값을 저장합니다. 브라우저를 닫아도 데이터가 유지됩니다." },
+            { sentence: "const username = localStorage.getItem('username');", explanation: "로컬 스토리지에서 'username' 키에 해당하는 값을 가져와 'username' 상수에 저장합니다." },
+            { sentence: "const obj = JSON.parse('{\"name\":\"John\", \"age\":30}');", explanation: "JSON 형식의 문자열을 JavaScript 객체로 변환(파싱)합니다." },
+            { sentence: "const json = JSON.stringify({name:'John', age:30});", explanation: "JavaScript 객체를 JSON 형식의 문자열로 변환합니다. 데이터를 전송할 때 주로 사용됩니다." }
+        ];
+        
+        // 상태 관리 변수
+        let currentRoundSentences = [];
+        let currentSentenceIndex = 0;
+        let sentenceStartTime;
+        let totalTypedChars = 0;
+        let totalTypingTime = 0;
+
+        // 타이머 관련 변수
+        let gameTimerInterval;
+        let totalElapsedTime = 0;
+        let lastTimestamp;
+        let isTimerRunning = false;
+
+        // DOM 요소
+        const explanationBox = document.getElementById('explanation-box');
+        const sentenceDisplay = document.getElementById('sentence-display');
+        const typingInput = document.getElementById('typing-input');
+        const feedbackDiv = document.getElementById('feedback');
+        const restartButton = document.getElementById('restart-button');
+        
+        const statCpm = document.getElementById('stat-cpm');
+        const statAvgCpm = document.getElementById('stat-avg-cpm');
+        const statSentenceTime = document.getElementById('stat-sentence-time');
+        const statTotalTime = document.getElementById('stat-total-time');
+
+        // 타이머 제어 함수
+        function startTimer() {
+            if (isTimerRunning) return;
+            isTimerRunning = true;
+            lastTimestamp = new Date().getTime();
+            gameTimerInterval = setInterval(() => {
+                const currentTime = new Date().getTime();
+                const elapsedSinceLast = (currentTime - lastTimestamp) / 1000;
+                statTotalTime.textContent = (totalElapsedTime + elapsedSinceLast).toFixed(1);
+            }, 100);
+        }
+
+        function stopTimer() {
+            if (!isTimerRunning) return;
+            isTimerRunning = false;
+            clearInterval(gameTimerInterval);
+            const currentTime = new Date().getTime();
+            totalElapsedTime += (currentTime - lastTimestamp) / 1000;
+            statTotalTime.textContent = totalElapsedTime.toFixed(1);
+        }
+        
+        // 게임 로직 함수
+        function displaySentence() {
+            if (currentSentenceIndex >= currentRoundSentences.length) {
+                explanationBox.innerHTML = `<strong>모든 구문 연습 완료!</strong><br>훌륭합니다! '다른 문장으로 시작' 버튼을 눌러 새롭게 시작하세요.`;
+                sentenceDisplay.innerHTML = "<h2>연습 완료!</h2>";
+                typingInput.disabled = true;
+                feedbackDiv.textContent = `최종 평균 타수: ${statAvgCpm.textContent}타/분, 총 소요 시간: ${totalElapsedTime.toFixed(1)}초`;
+                feedbackDiv.style.color = 'blue';
+                return;
+            }
+
+            const sentenceObj = currentRoundSentences[currentSentenceIndex];
+            explanationBox.textContent = sentenceObj.explanation;
+            sentenceDisplay.innerHTML = `<span class="current-char">${sentenceObj.sentence[0]}</span>` + sentenceObj.sentence.substring(1);
+            
+            typingInput.value = "";
+            typingInput.disabled = false;
+            typingInput.focus();
+            
+            sentenceStartTime = new Date().getTime();
+        }
+
+        function checkInput() {
+            if (!isTimerRunning && !typingInput.disabled) {
+                startTimer();
+            }
+            
+            const typedText = typingInput.value;
+            const currentSentence = currentRoundSentences[currentSentenceIndex].sentence;
+
+            let displayHtml = '';
+            let hasError = false;
+
+            for (let i = 0; i < currentSentence.length; i++) {
+                if (i < typedText.length) {
+                    if (typedText[i] === currentSentence[i]) {
+                        displayHtml += `<span class="typed">${currentSentence[i]}</span>`;
+                    } else {
+                        displayHtml += `<span class="incorrect">${currentSentence[i]}</span>`;
+                        hasError = true;
+                    }
+                } else if (i === typedText.length) {
+                    displayHtml += `<span class="current-char">${currentSentence[i]}</span>`;
+                } else {
+                    displayHtml += currentSentence[i];
+                }
+            }
+            sentenceDisplay.innerHTML = displayHtml;
+
+            feedbackDiv.textContent = hasError ? "오타가 있습니다!" : "";
+            feedbackDiv.style.color = '#dc3545';
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (typingInput.value === currentRoundSentences[currentSentenceIndex].sentence) {
+                    stopTimer(); // 현재 문장 완료 후 타이머 정지
+                    
+                    const sentenceEndTime = new Date().getTime();
+                    const timeTaken = (sentenceEndTime - sentenceStartTime) / 1000;
+                    
+                    const currentSentence = currentRoundSentences[currentSentenceIndex].sentence;
+                    totalTypedChars += currentSentence.length;
+                    totalTypingTime += timeTaken;
+
+                    const cpm = Math.round((currentSentence.length / timeTaken) * 60);
+                    const avgCpm = Math.round((totalTypedChars / totalTypingTime) * 60);
+
+                    statCpm.textContent = cpm;
+                    statAvgCpm.textContent = avgCpm;
+                    statSentenceTime.textContent = timeTaken.toFixed(1);
+
+                    feedbackDiv.textContent = "정확합니다!";
+                    feedbackDiv.style.color = '#28a745';
+
+                    currentSentenceIndex++;
+                    setTimeout(displaySentence, 300);
+                } else {
+                    feedbackDiv.textContent = "구문이 일치하지 않습니다. 다시 확인해주세요.";
+                    feedbackDiv.style.color = '#dc3545';
+                    typingInput.focus();
+                }
+            }
+        }
+
+        function restartGame() {
+            stopTimer();
+            clearInterval(gameTimerInterval);
+            
+            const shuffled = [...allSentences].sort(() => 0.5 - Math.random());
+            currentRoundSentences = shuffled.slice(0, 10);
+            
+            currentSentenceIndex = 0;
+            totalTypedChars = 0;
+            totalTypingTime = 0;
+            totalElapsedTime = 0;
+            isTimerRunning = false;
+            
+            statCpm.textContent = "0";
+            statAvgCpm.textContent = "0";
+            statSentenceTime.textContent = "0.0";
+            statTotalTime.textContent = "0.0";
+            
+            feedbackDiv.textContent = "";
+            displaySentence();
+        }
+
+        typingInput.addEventListener('input', checkInput);
+        typingInput.addEventListener('keydown', handleKeyDown);
+        restartButton.addEventListener('click', restartGame);
+
+        restartGame();
+    });
+    </script>
+</body>
+</html>
