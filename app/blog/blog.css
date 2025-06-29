@@ -1,0 +1,10 @@
+.App{width: 100%; max-width: 1024px; background-color: #fff; margin: 0 auto;}
+
+.black-nav{display: block; padding: 20px 20px; background-color: #000;}
+.black-nav h4{color: #fff;}
+
+.list{border-bottom: 1px solid #ccc; padding: 10px 20px;}
+.list .title-area{display: flex; justify-content: space-between; margin-bottom: 10px;}
+.list .title-area span{font-weight: 400;}
+
+.modal{display: block; width: 80%; margin: 0 auto; background-color: #eees; padding: 20px; margin-top: 20px;}
