@@ -6,10 +6,10 @@ function App() {
 
     let [글제목, 글제목변경] = useState(['남자코트 추천', '강남 우동 맛집', '파이썬 독학']);
     let [따봉, 따봉변경] = useState(new Array(글제목.length).fill(0));
-    let new따봉 = [...따봉];
+    let copy따봉 = [...따봉];
     let [postno, setPostno] = useState(0);
-    
-    
+    let [userInput, userInputValue] = useState('');
+    let copy글제목 = [...글제목];
     // 모달 현재 상태 (default)
     let [modal, setModal] = useState(false);
 
@@ -39,14 +39,21 @@ function App() {
                     return (
                         <div className="list" key={i}>
                             <div className="title-area">
-                                <h4 onClick={() => { setModal(!modal); setPostno(i) }}>{글제목[i]}</h4><span onClick={() => { new따봉[i] = new따봉[i] + 1; 따봉변경(new따봉) }}>👍{따봉[i]}</span>
+                                <h4 onClick={() => { setModal(!modal); setPostno(i) }}>{글제목[i]}</h4><span onClick={() => { copy따봉[i] = copy따봉[i] + 1; 따봉변경(copy따봉) }}>👍{따봉[i]}</span>
                             </div>
                             <p>2월 17일 발행</p>
+                            <button onClick={()=>{copy글제목.splice(i,1); 글제목변경(copy글제목); copy따봉.splice(i,1); 따봉변경(copy따봉);}}>삭제</button>
                         </div>
                     )
                 })
             }
+
+            <input id="userText" type="text" onChange={(e)=>{ userInputValue(e.target.value)}} value={userInput}/>
+            <button onClick={() => {copy글제목.unshift(userInput); 글제목변경(copy글제목); copy따봉.unshift(0);따봉변경(copy따봉); userInputValue('');}}>추가</button>
+
             {
+                //상위 html로 퍼지는 이벤트버블링 막고싶으면 e.stopPropagation() 자식요소에 넣으면 됨
+
                 // 조건식 ? 참일때 실행 할 코드 : 거짓일 때 실행할 코드
                 // 1 == 1 ? '맞음' : '아님" -> 맞음
                 // 1 == 2 ? '맞음' : '아님" -> 아님
@@ -62,7 +69,6 @@ function Modal(props){
             <h4>{props.글제목[props.postno]}</h4>
             <p>내용</p>
             <p>상세내용</p>
-            <button onClick={() => {props.글제목변경(['여자코트 추천','',''])}}>제목변경</button>
         </div>
     )
 }
