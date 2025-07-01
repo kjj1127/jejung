@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 // 💡 만약 '좋아요' 기능도 DB에 저장하고 싶다면 'blog' 테이블에 likes 같은 숫자 타입 컬럼을 추가해야 합니다.
 
 // ⬇️ 1. supabase 클라이언트 import 하기
-import { supabase } from '../supabaseClient'; // supabaseClient.js 파일 경로 확인!
+import { supabase } from '@/lib/supabaseClient';
 
 function App() {
     // ⬇️ 2. state 간소화: DB에서 가져온 게시글 목록을 저장할 state
