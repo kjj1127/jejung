@@ -1,4 +1,5 @@
-// 'use client'; // Next.js 사용 시 필요
+'use client';
+
 import './blog.css';
 import { useState, useEffect } from 'react';
 // ⛔️ 따봉 기능은 DB에 컬럼이 없으므로 일단 제외했습니다.
