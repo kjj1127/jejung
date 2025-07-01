@@ -15,7 +15,8 @@ function App() {
     
     // ⬇️ 3. state 간소화: 모달, 새 글 입력, 모달에 보일 글 번호
     const [modal, setModal] = useState(false);
-    const [userInput, setUserInput] = useState('');
+    const [writeTitle, setWriteTitle] = useState('');
+    const [writeContent, setWriteContent] = useState('');
     const [currentPostIndex, setCurrentPostIndex] = useState(0);
 
     // ⬇️ 4. DB에서 데이터 가져오기 (컴포넌트 로드 시 1회 실행)
@@ -41,7 +42,7 @@ function App() {
 
     // ⬇️ 5. DB에 새로운 글 추가하는 함수
     const addPost = async () => {
-        if (userInput.trim() === '') {
+        if (writeTitle.trim() === '') {
             alert('제목을 입력하세요.');
             return;
         }
@@ -49,15 +50,16 @@ function App() {
         // DB에 새 글(title, content)을 추가합니다. content는 일단 비워둡니다.
         const { data, error } = await supabase
             .from('blog')
-            .insert([{ title: userInput, content: '아직 내용이 없습니다.' }])
-            .select(); // 삽입된 데이터를 반환받기 위해 .select() 추가
+            .insert([{ title: writeTitle, content: writeContent }])
+            .select();
 
         if (error) {
             console.error('Error adding post: ', error);
         } else {
             // 화면에 즉시 반영하기 위해 기존 posts 목록의 맨 앞에 새 데이터를 추가
             setPosts([data[0], ...posts]);
-            setUserInput(''); // 입력창 비우기
+            setWriteTitle('');
+            setWriteContent('');
         }
     };
     
@@ -98,7 +100,6 @@ function App() {
                     <div className="title-area">
                         {/* 클릭 시 모달 열기 + 현재 글의 인덱스 저장 */}
                         <h4 onClick={() => { setModal(true); setCurrentPostIndex(i) }}>{post.title}</h4>
-                        {/* <span>👍</span>  따봉 기능은 임시 제외 */}
                     </div>
                     {/* toLocaleDateString()를 사용해 날짜 형식 변경 */}
                     <p>{new Date(post.created_at).toLocaleDateString()} 발행</p>
@@ -110,8 +111,14 @@ function App() {
             {/* ⬇️ 8. 글 추가 UI */}
             <input 
                 type="text" 
-                onChange={(e) => { setUserInput(e.target.value) }} 
-                value={userInput} 
+                onChange={(e) => { setWriteTitle(e.target.value) }} 
+                value={writeTitle} 
+                placeholder="새 글 제목을 입력하세요"
+            />
+            <textarea
+                type="text" 
+                onChange={(e) => { setWriteContent(e.target.value) }} 
+                value={writeContent} 
                 placeholder="새 글 제목을 입력하세요"
             />
             <button onClick={addPost}>추가</button> {/* 추가 버튼 클릭 시 addPost 함수 호출 */}
