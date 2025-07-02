@@ -1,147 +1,302 @@
 'use client';
 
 import './blog.css';
-import { useState, useEffect } from 'react';
-// ⛔️ 따봉 기능은 DB에 컬럼이 없으므로 일단 제외했습니다.
-// 💡 만약 '좋아요' 기능도 DB에 저장하고 싶다면 'blog' 테이블에 likes 같은 숫자 타입 컬럼을 추가해야 합니다.
-
-// ⬇️ 1. supabase 클라이언트 import 하기
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 function App() {
-    // ⬇️ 2. state 간소화: DB에서 가져온 게시글 목록을 저장할 state
-    const [posts, setPosts] = useState([]);
-    const [loading, setLoading] = useState(true); // 데이터 로딩 상태
-    
-    // ⬇️ 3. state 간소화: 모달, 새 글 입력, 모달에 보일 글 번호
-    const [modal, setModal] = useState(false);
-    const [writeTitle, setWriteTitle] = useState('');
-    const [writeContent, setWriteContent] = useState('');
-    const [currentPostIndex, setCurrentPostIndex] = useState(0);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [readModal, setReadModal] = useState(false);
+  const [writeModal, setWriteModal] = useState(false);
+  const [writeTitle, setWriteTitle] = useState('');
+  const [writeContent, setWriteContent] = useState('');
+  const [currentPostIndex, setCurrentPostIndex] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
-    // ⬇️ 4. DB에서 데이터 가져오기 (컴포넌트 로드 시 1회 실행)
-    useEffect(() => {
-        fetchPosts();
-    }, []);
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
-    const fetchPosts = async () => {
-        setLoading(true);
-        // 'blog' 테이블에서 created_at을 기준으로 내림차순 정렬하여 데이터 가져오기
-        const { data, error } = await supabase
-            .from('blog')
-            .select('*')
-            .order('created_at', { ascending: false });
+  const fetchPosts = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('blog')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('Error fetching posts: ', error);
-        } else {
-            setPosts(data); // 가져온 데이터를 posts state에 저장
-        }
-        setLoading(false);
-    };
+    if (error) {
+      console.error('Error fetching posts: ', error);
+    } else {
+      setPosts(data);
+    }
+    setLoading(false);
+  };
 
-    // ⬇️ 5. DB에 새로운 글 추가하는 함수
-    const addPost = async () => {
-        if (writeTitle.trim() === '') {
-            alert('제목을 입력하세요.');
-            return;
-        }
+  // ✅ 파일 객체를 직접 받도록 수정
+  const handleImageUpload = async (file) => {
+    if (!file) return;
 
-        // DB에 새 글(title, content)을 추가합니다. content는 일단 비워둡니다.
-        const { data, error } = await supabase
-            .from('blog')
-            .insert([{ title: writeTitle, content: writeContent }])
-            .select();
-
-        if (error) {
-            console.error('Error adding post: ', error);
-        } else {
-            // 화면에 즉시 반영하기 위해 기존 posts 목록의 맨 앞에 새 데이터를 추가
-            setPosts([data[0], ...posts]);
-            setWriteTitle('');
-            setWriteContent('');
-        }
-    };
-    
-    // ⬇️ 6. DB에서 글 삭제하는 함수
-    const deletePost = async (postId, index) => {
-        // 사용자에게 삭제 여부 확인
-        if (window.confirm("정말로 이 글을 삭제하시겠습니까?")) {
-            const { error } = await supabase
-                .from('blog')
-                .delete()
-                .match({ id: postId });
-
-            if (error) {
-                console.error('Error deleting post: ', error);
-            } else {
-                // 화면에 즉시 반영하기 위해 해당 인덱스의 게시글을 목록에서 제거
-                const newPosts = [...posts];
-                newPosts.splice(index, 1);
-                setPosts(newPosts);
-            }
-        }
-    };
-    
-    // 로딩 중일 때 표시할 화면
-    if (loading) {
-        return <div>로딩 중...</div>
+    // ✅ 이미지 파일인지 간단히 확인
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 업로드할 수 있습니다.');
+      return;
     }
 
-    return (
-        <div className="App">
-            <div className="black-nav">
-                <h4>jejung blog</h4>
-            </div>
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
 
-            {/* ⬇️ 7. DB에서 가져온 posts 데이터로 목록 표시 */}
-            {posts.map((post, i) => (
-                <div className="list" key={post.id}> {/* key를 post.id로 변경 */}
-                    <div className="title-area">
-                        {/* 클릭 시 모달 열기 + 현재 글의 인덱스 저장 */}
-                        <h4 onClick={() => { setModal(true); setCurrentPostIndex(i) }}>{post.title}</h4>
-                    </div>
-                    {/* toLocaleDateString()를 사용해 날짜 형식 변경 */}
-                    <p>{new Date(post.created_at).toLocaleDateString()} 발행</p>
-                    {/* 삭제 버튼 클릭 시 deletePost 함수 호출 */}
-                    <button onClick={() => deletePost(post.id, i)}>삭제</button>
-                </div>
-            ))}
+    try {
+      const response = await fetch('http://jejungserver.mycafe24.com/upload.php', {
+        method: 'POST',
+        body: formData,
+      });
 
-            {/* ⬇️ 8. 글 추가 UI */}
-            <input 
-                type="text" 
-                onChange={(e) => { setWriteTitle(e.target.value) }} 
-                value={writeTitle} 
-                placeholder="새 글 제목을 입력하세요"
-            />
-            <textarea
-                type="text" 
-                onChange={(e) => { setWriteContent(e.target.value) }} 
-                value={writeContent} 
-                placeholder="새 글 제목을 입력하세요"
-            />
-            <button onClick={addPost}>추가</button> {/* 추가 버튼 클릭 시 addPost 함수 호출 */}
+      const result = await response.json();
+      if (result.success) {
+        const imageHtml = `\n${result.html}\n`;
+        setWriteContent(prevContent => prevContent + imageHtml);
+        alert('이미지가 성공적으로 첨부되었습니다.');
+      } else {
+        alert(`이미지 업로드 실패: ${result.error}`);
+      }
+    } catch (error) {
+      alert('서버와 통신 중 오류가 발생했습니다.');
+    } finally {
+      setUploading(false);
+      if(fileInputRef.current) {
+        fileInputRef.current.value = null;
+      }
+    }
+  };
 
-            {/* ⬇️ 9. 모달창 UI: modal이 true일 때만 Modal 컴포넌트 보여주기 */}
-            {modal && <Modal posts={posts} currentPostIndex={currentPostIndex} />}
+  const addPost = async () => {
+    if (writeTitle.trim() === '') {
+      alert('제목을 입력하세요.');
+      return;
+    }
+    const { data, error } = await supabase
+      .from('blog')
+      .insert([{ title: writeTitle, content: writeContent }])
+      .select();
+
+    if (error) {
+      console.error('Error adding post: ', error);
+    } else {
+      setPosts([data[0], ...posts]);
+      setWriteTitle('');
+      setWriteContent('');
+      setWriteModal(false);
+    }
+  };
+
+  const deletePost = async (postId) => {
+    if (window.confirm("정말로 이 글을 삭제하시겠습니까?")) {
+      const { error } = await supabase.from('blog').delete().match({ id: postId });
+      if (error) {
+        console.error('Error deleting post: ', error);
+      } else {
+        setPosts(posts.filter(post => post.id !== postId));
+      }
+    }
+  };
+
+  if (loading) return <div className="loading">Loading...</div>;
+
+  return (
+    <div className="App">
+      <header className="header">
+        <div className="header-content">
+          <h1>JeJungTop</h1>
+          <p>custom blog</p>
         </div>
-    );
+        <button className="write-btn" onClick={() => setWriteModal(true)}>
+          + 새 글 작성
+        </button>
+      </header>
+
+      <main className="main-content">
+        {posts.length === 0 ? (
+          <div className="empty-state">
+            <p>아직 작성된 글이 없습니다.</p>
+            <button onClick={() => setWriteModal(true)}>첫 번째 글 작성하기</button>
+          </div>
+        ) : (
+          <div className="posts-grid">
+            {posts.map((post, i) => (
+              <article className="post-card" key={post.id}>
+                <div className="post-content">
+                  <h2 onClick={() => { setReadModal(true); setCurrentPostIndex(i); }}>
+                    {post.title}
+                  </h2>
+                  <p className="post-preview">
+                    {post.content.replace(/<[^>]*>/g, '').substring(0, 120)}...
+                  </p>
+                  <div className="post-meta">
+                    <time>{new Date(post.created_at).toLocaleDateString('ko-KR')}</time>
+                    <button className="delete-btn" onClick={() => deletePost(post.id)}>
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {writeModal && (
+        <WriteModal 
+          writeTitle={writeTitle}
+          setWriteTitle={setWriteTitle}
+          writeContent={writeContent}
+          setWriteContent={setWriteContent}
+          handleImageUpload={handleImageUpload} // ✅ 수정된 함수 전달
+          uploading={uploading}
+          fileInputRef={fileInputRef}
+          addPost={addPost}
+          closeModal={() => setWriteModal(false)}
+        />
+      )}
+
+      {readModal && (
+        <ReadModal 
+          posts={posts} 
+          currentPostIndex={currentPostIndex} 
+          closeModal={() => setReadModal(false)} 
+        />
+      )}
+    </div>
+  );
 }
 
-// ⬇️ 10. Modal 컴포넌트 수정: posts 배열과 현재 인덱스를 props로 받음
-function Modal(props) {
-    const post = props.posts[props.currentPostIndex]; // 현재 글 정보
-    
-    if (!post) return null; // 혹시 모를 오류 방지
+// ✅ 드래그 앤 드롭 기능이 추가된 WriteModal
+function WriteModal({ 
+  writeTitle, setWriteTitle, 
+  writeContent, setWriteContent, 
+  handleImageUpload, uploading, 
+  fileInputRef, addPost, closeModal 
+}) {
+  const [isDragging, setIsDragging] = useState(false);
 
-    return (
-        <div className="modal">
-            <h4>{post.title}</h4>
-            <p>{new Date(post.created_at).toLocaleString()}</p> {/* 상세한 날짜 정보 */}
-            <p>{post.content}</p> {/* DB의 content 컬럼 내용 표시 */}
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // 드래그 중이라는 것을 계속 알려주기 위해 isDragging을 true로 유지
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      handleImageUpload(file); // ✅ 파일 객체를 직접 전달
+      e.dataTransfer.clearData();
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={closeModal}>
+      <div className="write-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>새 글 작성</h3>
+          <button className="close-btn" onClick={closeModal}>×</button>
         </div>
-    );
+        
+        <div 
+          className="modal-body"
+          // ✅ 드래그 이벤트 핸들러 추가
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          <input 
+            type="text" 
+            placeholder="제목을 입력하세요"
+            value={writeTitle}
+            onChange={(e) => setWriteTitle(e.target.value)}
+            className="title-input"
+          />
+          
+          <textarea 
+            placeholder="내용을 입력하거나 이미지를 드래그 앤 드롭하세요."
+            value={writeContent}
+            onChange={(e) => setWriteContent(e.target.value)}
+            // ✅ isDragging 상태에 따라 클래스 동적 적용
+            className={`content-textarea ${isDragging ? 'drag-over' : ''}`}
+            rows="15"
+          />
+          
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={(e) => handleImageUpload(e.target.files[0])} // ✅ 파일 객체 전달
+            style={{ display: 'none' }} 
+            accept="image/*" 
+          />
+          
+          <div className="modal-actions">
+            <button 
+              className="image-btn"
+              onClick={() => fileInputRef.current.click()} 
+              disabled={uploading}
+            >
+              {uploading ? '업로드 중...' : '📷 이미지 첨부'}
+            </button>
+            
+            <div className="action-buttons">
+              <button className="cancel-btn" onClick={closeModal}>취소</button>
+              <button className="publish-btn" onClick={addPost}>작성</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReadModal({ posts, currentPostIndex, closeModal }) {
+  const post = posts[currentPostIndex];
+  if (!post) return null;
+
+  const createMarkup = (htmlContent) => {
+    return { __html: htmlContent.replace(/\n/g, '<br />') };
+  };
+
+  return (
+    <div className="modal-overlay" onClick={closeModal}>
+      <div className="read-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h3>{post.title}</h3>
+            <time>{new Date(post.created_at).toLocaleString('ko-KR')}</time>
+          </div>
+          <button className="close-btn" onClick={closeModal}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="content" dangerouslySetInnerHTML={createMarkup(post.content)} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default App;
