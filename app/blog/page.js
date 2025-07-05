@@ -49,7 +49,7 @@ function App() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://jejungserver.mycafe24.com/upload.php', {
+      const response = await fetch('https://jejungserver.mycafe24.com/upload.php', {
         method: 'POST',
         body: formData,
       });
