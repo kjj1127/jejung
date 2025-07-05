@@ -1,82 +1,329 @@
-* {margin: 0; padding: 0; box-sizing: border-box;}
-body {font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif; background: #fafbfc; color: #2d3748; line-height: 1.6;}
-.App {min-height: 100vh;}
-.header {background: white; border-bottom: 1px solid #e2e8f0; padding: 2rem 0; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); text-align: center;}
-.header-content {max-width: 1200px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center;}
-.header h1 {font-size: 1.875rem; font-weight: 700; color: #1a202c; margin-bottom: 0.25rem;}
-.header p {color: #718096; font-size: 0.875rem;}
-.write-btn {background: #444; color: white; border: none; width: 95%; max-width: 1200px; padding: 10px 0; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; text-align: center;}
-.write-btn:hover {background: #000; transform: translateY(-1px);}
-.main-content {max-width: 1200px; margin: 0 auto; padding: 2rem;}
-.loading {text-align: center; padding: 4rem 0; color: #718096; font-size: 1.125rem;}
-.empty-state {text-align: center; padding: 4rem 0;}
-.empty-state p {color: #718096; margin-bottom: 1.5rem; font-size: 1.125rem;}
-.empty-state button {background: #4299e1; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: all 0.2s;}
-.empty-state button:hover {background: #3182ce;}
-.posts-grid {display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem;}
-.post-card {background: white; border-radius: 0.75rem; border: 1px solid #e2e8f0; overflow: hidden; transition: all 0.3s ease; cursor: pointer;}
-.post-card:hover {transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); border-color: #cbd5e0;}
-.post-content {padding: 1.5rem;}
-.post-card h2 {font-size: 1.25rem; font-weight: 600; color: #1a202c; margin-bottom: 0.75rem; line-height: 1.4; cursor: pointer;}
-.post-card h2:hover {color: #4299e1;}
-.post-preview {color: #718096; font-size: 0.875rem; margin-bottom: 1rem; line-height: 1.5;}
-.post-meta {display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem; border-top: 1px solid #f7fafc;}
-.post-meta time {color: #a0aec0; font-size: 0.75rem;}
-.delete-btn {background: #fed7d7; color: #e53e3e; border: none; padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; cursor: pointer; transition: all 0.2s;}
-.delete-btn:hover {background: #feb2b2;}
-.modal-overlay {position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.3s ease-out;}
-@keyframes fadeIn {
-    from {opacity: 0;}
-    to {opacity: 1;}
+/* === 1. 기본 & 테마 설정 === */
+:root {
+  --bg-color: #1e1e1e; /* VS Code 배경색과 유사 */
+  --primary-text-color: #d4d4d4; /* 기본 텍스트 색상 */
+  --secondary-text-color: #8e8e8e; /* 부가 정보 텍스트 색상 */
+  --card-bg-color: #252526; /* 카드 배경색 */
+  --border-color: #3e3e3e; /* 테두리 색상 */
+  --accent-color: #0e639c; /* 주요 버튼 및 하이라이트 색상 */
+  --accent-hover-color: #1177bb;
+  --danger-color: #f44747; /* 삭제 버튼 색상 */
+  --danger-hover-color: #ff5f5f;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
-.content-textarea.drag-over {border-color: #007bff; border-style: dashed; background-color: #f0f8ff; box-shadow: inset 0 0 10px rgba(0, 123, 255, 0.2);}
-.modal-header {display: flex; justify-content: space-between; align-items: flex-start; padding: 1.5rem 1.5rem 0 1.5rem; border-bottom: 1px solid #e2e8f0; margin-bottom: 1.5rem;}
-.modal-header h3 {font-size: 1.25rem; font-weight: 600; color: #1a202c;}
-.modal-header time {color: #718096; font-size: 0.875rem; margin-top: 0.25rem;}
-.close-btn {background: none; border: none; font-size: 1.5rem; color: #a0aec0; cursor: pointer; padding: 0; width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center; border-radius: 0.375rem; transition: all 0.2s;}
-.close-btn:hover {background: #f7fafc; color: #718096;}
-.modal-body {padding: 0 1.5rem 1.5rem 1.5rem;}
-.write-modal {background: white; width: 90%; max-width: 600px; max-height: 90vh; border-radius: 0.75rem; overflow: hidden; animation: slideInLeft 0.3s ease-out;}
-@keyframes slideInLeft {
-    from {opacity: 0; transform: translateX(-100px);}
-    to {opacity: 1; transform: translateX(0);}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-.title-input {width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 0.5rem; font-size: 1.125rem; font-weight: 500; margin-bottom: 1rem; transition: border-color 0.2s;}
-.title-input:focus {outline: none; border-color: #4299e1;}
-.content-textarea {width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.875rem; line-height: 1.6; resize: vertical; min-height: 300px; font-family: inherit; margin-bottom: 1rem; transition: border-color 0.2s;}
-.content-textarea:focus {outline: none; border-color: #4299e1;}
-.modal-actions {display: flex; justify-content: space-between; align-items: center; gap: 1rem;}
-.image-btn {background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 0.5rem 1rem; border-radius: 0.375rem; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;}
-.image-btn:hover:not(:disabled) {background: #edf2f7;}
-.image-btn:disabled {opacity: 0.6; cursor: not-allowed;}
-.action-buttons {display: flex; gap: 0.75rem;}
-.cancel-btn {background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s;}
-.cancel-btn:hover {background: #edf2f7;}
-.publish-btn {background: #48bb78; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.2s;}
-.publish-btn:hover {background: #38a169;}
-.read-modal {background: white; width: 90%; max-width: 800px; max-height: 90vh; border-radius: 0.75rem; overflow: hidden; animation: slideInRight 0.3s ease-out;}
-@keyframes slideInRight {
-    from {opacity: 0; transform: translateX(100px);}
-    to {opacity: 1; transform: translateX(0);}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--primary-text-color);
+  font-family: var(--font-family);
+  line-height: 1.6;
 }
-.read-modal .modal-body {max-height: calc(90vh - 100px); overflow-y: auto;}
-.content {line-height: 1.8; font-size: 1rem; color: #2d3748;}
-.content h1, .content h2, .content h3 {margin: 1.5rem 0 1rem 0; color: #1a202c;}
-.content p {margin-bottom: 1rem;}
-.content img {max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1rem 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);}
-.content code {background: #f7fafc; padding: 0.125rem 0.25rem; border-radius: 0.25rem; font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace; font-size: 0.875rem;}
-.content pre {background: #2d3748; color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 1rem 0;}
-.content pre code {background: none; padding: 0; color: inherit;}
-@media (max-width: 768px) {
-    .header-content {flex-direction: column; gap: 1rem; text-align: center;}
-    .main-content {padding: 1rem;}
-    .posts-grid {grid-template-columns: 1fr; gap: 1rem;}
-    .write-modal, .read-modal {width: 95%; max-height: 95vh;}
-    .modal-actions {flex-direction: column; align-items: stretch;}
-    .action-buttons {justify-content: stretch;}
-    .action-buttons button {flex: 1;}
+
+.App {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
-.modal-body::-webkit-scrollbar, .content-textarea::-webkit-scrollbar {width: 6px;}
-.modal-body::-webkit-scrollbar-track, .content-textarea::-webkit-scrollbar-track {background: #f1f5f9;}
-.modal-body::-webkit-scrollbar-thumb, .content-textarea::-webkit-scrollbar-thumb {background: #cbd5e0; border-radius: 3px;}
-.modal-body::-webkit-scrollbar-thumb:hover, .content-textarea::-webkit-scrollbar-thumb:hover {background: #a0aec0;}
+
+/* === 2. 헤더 스타일 === */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header-content h1 {
+  font-size: 1.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.header-content p {
+  color: var(--secondary-text-color);
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* === 3. 버튼 공통 스타일 === */
+.write-btn, .cleanup-btn, .delete-btn, .image-btn, .cancel-btn, .publish-btn, .edit-btn {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.write-btn:active, .cleanup-btn:active, .delete-btn:active, .image-btn:active, .cancel-btn:active, .publish-btn:active, .edit-btn:active {
+  transform: scale(0.98);
+}
+
+.write-btn, .publish-btn {
+  background-color: var(--accent-color);
+  color: white;
+}
+.write-btn:hover, .publish-btn:hover {
+  background-color: var(--accent-hover-color);
+}
+
+.cleanup-btn, .image-btn, .cancel-btn, .edit-btn {
+  background-color: #3e3e3e;
+  color: var(--primary-text-color);
+  border: 1px solid #555;
+}
+.cleanup-btn:hover, .image-btn:hover, .cancel-btn:hover, .edit-btn:hover {
+  background-color: #4f4f4f;
+}
+
+.cancel-btn, .edit-btn{margin-right: 10px;}
+
+.delete-btn {
+  background-color: transparent;
+  color: var(--danger-color);
+}
+.delete-btn:hover {
+  text-decoration: underline;
+}
+
+/* === 4. 메인 콘텐츠 & 포스트 카드 === */
+.main-content {
+  padding: 2rem 0;
+}
+
+.posts-grid {
+  display: grid;
+  /* 모바일에서는 1열 */
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.post-card {
+  background-color: var(--card-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.post-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+.post-content {
+  padding: 1.5rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.post-content h2 {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+}
+.post-content h2:hover {
+  color: var(--accent-color);
+}
+
+.post-preview {
+  color: var(--secondary-text-color);
+  flex-grow: 1;
+  margin-bottom: 1rem;
+}
+
+.post-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--secondary-text-color);
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+  margin-top: auto;
+}
+
+/* === 5. 모달 & 애니메이션 === */
+
+/* 모달 애니메이션 정의 */
+@keyframes slideInFromLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  /* 자식요소인 모달의 위치 기준을 잡아주기 위해 flex가 아닌 block으로 처리 */
+}
+
+/* 모달 공통 스타일 */
+.write-modal, .read-modal {
+  position: fixed;
+  top: 0;
+  height: 100vh;
+  width: 90%; /* 모바일에서는 너비 90% */
+  max-width: 1000px; /* 최대 너비 제한 */
+  background-color: var(--bg-color);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+}
+
+/* 글쓰기 모달 (왼쪽에서 등장) */
+.write-modal {
+  left: 0;
+  animation: slideInFromLeft 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  border-right: 1px solid var(--border-color);
+}
+
+/* 글읽기 모달 (오른쪽에서 등장) */
+.read-modal {
+  right: 0;
+  animation: slideInFromRight 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  border-left: 1px solid var(--border-color);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.modal-footer{
+    display: flex;
+    padding: 1rem 1.5rem;
+    justify-content: end;
+}
+
+.modal-header h3 {
+  font-size: 1.3rem;
+}
+
+.modal-header .close-btn {
+  background: none;
+  border: none;
+  color: var(--primary-text-color);
+  font-size: 2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto; /* 내용이 길어지면 스크롤 */
+  flex-grow: 1;
+}
+
+/* 글쓰기 모달 내부 요소 */
+.title-input, .content-textarea {
+  width: 100%;
+  background-color: var(--card-bg-color);
+  border: 1px solid var(--border-color);
+  color: var(--primary-text-color);
+  padding: 0.8rem;
+  border-radius: 5px;
+  margin-bottom: 1rem;
+  font-family: inherit;
+  font-size: 1rem;
+}
+.title-input:focus, .content-textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.content-textarea.drag-over {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 10px var(--accent-color);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+/* 글읽기 모달 내부 요소 */
+.read-modal .modal-header time {
+  font-size: 0.85rem;
+  color: var(--secondary-text-color);
+}
+.read-modal .content {
+  line-height: 1.8;
+}
+
+.read-modal .content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 5px;
+  margin: 1rem 0;
+}
+.read-modal .content p {
+  margin-bottom: 1rem;
+}
+.read-modal .content h1,
+.read-modal .content h2,
+.read-modal .content h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+/* 로딩, 빈 상태 */
+.loading, .empty-state {
+  text-align: center;
+  padding: 4rem 0;
+  color: var(--secondary-text-color);
+}
+
+/* === 6. 반응형 디자인 (Media Queries) === */
+
+/* 태블릿 사이즈 */
+@media (min-width: 768px) {
+  .posts-grid {
+    /* 2열 레이아웃 */
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 데스크탑 사이즈 */
+@media (min-width: 1024px) {
+  .posts-grid {
+    /* 3열 레이아웃 */
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
