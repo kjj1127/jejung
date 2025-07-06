@@ -11,14 +11,17 @@ function App() {
   const [readModal, setReadModal] = useState(false);
   const [writeModal, setWriteModal] = useState(false);
   
-  // ✅ 수정/작성 상태 관리
   const [writeTitle, setWriteTitle] = useState('');
+  const [writeCategory, setWriteCategory] = useState('공부'); // ✅ 기본 카테고리 설정
   const [writeContent, setWriteContent] = useState('');
-  const [editingPost, setEditingPost] = useState(null); // ✅ 수정 중인 포스트 정보 저장
+  const [editingPost, setEditingPost] = useState(null);
 
   const [currentPostIndex, setCurrentPostIndex] = useState(0);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // ✅ [신규] 선택된 카테고리를 관리하는 상태
+  const [selectedCategory, setSelectedCategory] = useState('전체');
 
   useEffect(() => {
     fetchPosts();
@@ -41,17 +44,12 @@ function App() {
   
   const runImageCleanup = async () => {
     // (기존 코드와 동일)
-    if (!window.confirm('정말로 사용하지 않는 이미지 정리를 시작할까요?\n이 작업은 서버의 파일을 영구적으로 삭제합니다.')) {
-      return;
-    }
+    if (!window.confirm('정말로 사용하지 않는 이미지 정리를 시작할까요?\n이 작업은 서버의 파일을 영구적으로 삭제합니다.')) return;
     try {
       alert('서버로부터 모든 게시글 데이터를 가져와 분석을 시작합니다. 잠시만 기다려주세요.');
       const { data: posts, error } = await supabase.from('blog').select('content');
       if (error) throw new Error(`Supabase 데이터 조회 오류: ${error.message}`);
-      if (!posts || posts.length === 0) {
-        alert('분석할 게시글이 없습니다.');
-        return;
-      }
+      if (!posts || posts.length === 0) { alert('분석할 게시글이 없습니다.'); return; }
       const allContentString = posts.map(post => post.content).join('');
       const usedImageUrls = allContentString.match(/https:\/\/jejungserver\.mycafe24\.com\/uploads\/[^'"]+/g) || [];
       const usedImageFileNames = [...new Set(usedImageUrls.map(url => url.split('/').pop()))];
@@ -59,16 +57,11 @@ function App() {
       const secretKey = "JJTtoJJScleanup";
       const response = await fetch(phpCleanupUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': secretKey
-        },
+        headers: { 'Content-Type': 'application/json', 'X-Auth-Token': secretKey },
         body: JSON.stringify({ usedImages: usedImageFileNames })
       });
       const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'PHP 서버에서 오류가 발생했습니다.');
-      }
+      if (!response.ok) throw new Error(result.message || 'PHP 서버에서 오류가 발생했습니다.');
       alert(`이미지 정리 완료!\n\n- 디스크의 총 이미지: ${result.total_disk_images}\n- 사용 중인 이미지: ${result.used_images_count}\n- 삭제된 이미지: ${result.deleted_count}개`);
     } catch (err) {
       alert(`오류 발생: ${err.message}`);
@@ -78,22 +71,15 @@ function App() {
   const handleImageUpload = async (file) => {
     // (기존 코드와 동일)
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('이미지 파일만 업로드할 수 있습니다.');
-      return;
-    }
+    if (!file.type.startsWith('image/')) { alert('이미지 파일만 업로드할 수 있습니다.'); return; }
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const response = await fetch('https://jejungserver.mycafe24.com/upload.php', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await fetch('https://jejungserver.mycafe24.com/upload.php', { method: 'POST', body: formData });
       const result = await response.json();
       if (result.success) {
-        const imageHtml = `\n${result.html}\n`;
-        setWriteContent(prevContent => prevContent + imageHtml);
+        setWriteContent(prevContent => prevContent + `\n${result.html}\n`);
       } else {
         alert(`이미지 업로드 실패: ${result.error}`);
       }
@@ -101,78 +87,62 @@ function App() {
       alert('서버와 통신 중 오류가 발생했습니다.');
     } finally {
       setUploading(false);
-      if(fileInputRef.current) {
-        fileInputRef.current.value = null;
-      }
+      if(fileInputRef.current) fileInputRef.current.value = null;
     }
   };
 
-  // ✅ 글쓰기 모달을 닫는 전용 함수
   const closeWriteModal = () => {
     setWriteModal(false);
-    setEditingPost(null); // 수정 상태 초기화
+    setEditingPost(null);
     setWriteTitle('');
+    setWriteCategory('공부'); // ✅ 모달 닫을 때 기본값으로
     setWriteContent('');
   };
   
   const addPost = async () => {
-    if (writeTitle.trim() === '') {
-      alert('제목을 입력하세요.');
-      return;
-    }
+    if (writeTitle.trim() === '') { alert('제목을 입력하세요.'); return; }
     const { data, error } = await supabase
       .from('blog')
-      .insert([{ title: writeTitle, content: writeContent }])
+      .insert([{ title: writeTitle, category: writeCategory, content: writeContent }])
       .select();
 
-    if (error) {
-      console.error('Error adding post: ', error);
-    } else {
-      setPosts([data[0], ...posts]);
-      closeWriteModal(); // 모달 닫기 및 상태 초기화
-    }
+    if (error) { console.error('Error adding post: ', error); } 
+    else { setPosts([data[0], ...posts]); closeWriteModal(); }
   };
 
-  // ✅ [신규] 글 수정 함수
   const updatePost = async () => {
     if (!editingPost) return;
-
     const { data, error } = await supabase
       .from('blog')
-      .update({ title: writeTitle, content: writeContent })
+      .update({ title: writeTitle, category: writeCategory, content: writeContent })
       .match({ id: editingPost.id })
       .select();
 
-    if (error) {
-      console.error('Error updating post: ', error);
-    } else {
-      // 로컬 상태 업데이트로 새로고침 없이 변경사항 반영
-      setPosts(posts.map(p => p.id === editingPost.id ? data[0] : p));
-      closeWriteModal(); // 모달 닫기 및 상태 초기화
-    }
+    if (error) { console.error('Error updating post: ', error); } 
+    else { setPosts(posts.map(p => p.id === editingPost.id ? data[0] : p)); closeWriteModal(); }
   };
 
   const deletePost = async (postId) => {
     if (confirm("정말로 이 글을 삭제하시겠습니까?")) {
       const { error } = await supabase.from('blog').delete().match({ id: postId });
-      if (error) {
-        console.error('Error deleting post: ', error);
-      } else {
-        setPosts(posts.filter(post => post.id !== postId));
-        setReadModal(false); // ✅ 삭제 후 읽기 모달 닫기
-      }
+      if (error) { console.error('Error deleting post: ', error); } 
+      else { setPosts(posts.filter(post => post.id !== postId)); setReadModal(false); }
     }
   };
   
-  // ✅ [신규] 수정 버튼 클릭 핸들러
   const handleEdit = (post) => {
     setEditingPost(post);
     setWriteTitle(post.title);
+    setWriteCategory(post.category);
     setWriteContent(post.content);
-    setReadModal(false); // 읽기 모달 닫고
-    setWriteModal(true);  // 쓰기 모달 열기 (수정 모드로)
+    setReadModal(false);
+    setWriteModal(true);
   };
 
+  // ✅ [신규] 렌더링할 포스트를 필터링하는 로직
+  const filteredPosts = posts.filter(post => 
+    selectedCategory === '전체' ? true : post.category === selectedCategory
+  );
 
   if (loading) return <div className="loading">Loading...</div>;
 
@@ -191,20 +161,34 @@ function App() {
             + 새 글 작성
           </button>
         </div>
+        {/* ✅ 카테고리 필터링 UI 수정 */}
+        <ul className="category-nav">
+          <li className={selectedCategory === '전체' ? 'active' : ''} onClick={() => setSelectedCategory('전체')}>전체</li>
+          <li className={selectedCategory === '공부' ? 'active' : ''} onClick={() => setSelectedCategory('공부')}>공부</li>
+          <li className={selectedCategory === '일상' ? 'active' : ''} onClick={() => setSelectedCategory('일상')}>일상</li>
+        </ul>
       </header>
 
+      {/* ✅ filteredPosts를 사용하여 렌더링 */}
       <main className="main-content">
-        {posts.length === 0 ? (
+        {filteredPosts.length === 0 ? (
           <div className="empty-state">
             <p>아직 작성된 글이 없습니다.</p>
+            {selectedCategory !== '전체' && <p>'{selectedCategory}' 카테고리에는 글이 없네요!</p>}
             <button onClick={() => setWriteModal(true)}>첫 번째 글 작성하기</button>
           </div>
         ) : (
           <div className="posts-grid">
-            {posts.map((post, i) => (
+            {filteredPosts.map((post, i) => (
               <article className="post-card" key={post.id}>
                 <div className="post-content">
-                  <h2 onClick={() => { setReadModal(true); setCurrentPostIndex(i); }}>
+                  <span className="post-category-badge">{post.category}</span>
+                  {/* ✅ filteredPosts의 인덱스가 아닌 원본 posts의 인덱스를 찾아야 함 */}
+                  <h2 onClick={() => { 
+                      const originalIndex = posts.findIndex(p => p.id === post.id);
+                      setCurrentPostIndex(originalIndex);
+                      setReadModal(true); 
+                    }}>
                     {post.title}
                   </h2>
                   <p className="post-preview">
@@ -212,7 +196,6 @@ function App() {
                   </p>
                   <div className="post-meta">
                     <time>{new Date(post.created_at).toLocaleDateString('ko-KR')}</time>
-                    {/* ✅ 삭제 버튼을 ReadModal로 이동시켰으므로 여기서 제거 */}
                   </div>
                 </div>
               </article>
@@ -221,34 +204,35 @@ function App() {
         )}
       </main>
 
-      {/* ✅ WriteModal에 수정 관련 props 전달 */}
       {writeModal && (
         <WriteModal 
           writeTitle={writeTitle}
           setWriteTitle={setWriteTitle}
+          writeCategory={writeCategory}
+          setWriteCategory={setWriteCategory}
           writeContent={writeContent}
           setWriteContent={setWriteContent}
           handleImageUpload={handleImageUpload}
           uploading={uploading}
           fileInputRef={fileInputRef}
           addPost={addPost}
-          updatePost={updatePost}       // ✅ 수정 함수 전달
-          editingPost={editingPost}   // ✅ 수정 중인 포스트 정보 전달
-          closeModal={closeWriteModal}  // ✅ 전용 닫기 함수 사용
+          updatePost={updatePost}
+          editingPost={editingPost}
+          closeModal={closeWriteModal}
         />
       )}
 
-      {/* ✅ ReadModal에 수정/삭제 관련 props 전달 */}
       {readModal && (
         <ReadModal 
           posts={posts} 
           currentPostIndex={currentPostIndex} 
           closeModal={() => setReadModal(false)} 
-          handleEdit={handleEdit}     // ✅ 수정 핸들러 전달
-          deletePost={deletePost}     // ✅ 삭제 함수 전달
+          handleEdit={handleEdit}
+          deletePost={deletePost}
         />
       )}
       
+      {/* ✅ 카테고리 필터 UI 스타일 추가 */}
       <style jsx>{`
         .header-actions {
           display: flex;
@@ -267,14 +251,50 @@ function App() {
         .cleanup-btn:hover {
           background-color: #777;
         }
-        /* ✅ modal-footer 스타일 추가 */
         .modal-footer {
             padding: 1rem 1.5rem;
-            border-top: 1px solid #3e3e3e; /* var(--border-color)와 동일 */
+            border-top: 1px solid #3e3e3e;
             display: flex;
-            justify-content: flex-end; /* 버튼을 오른쪽으로 정렬 */
+            justify-content: flex-end;
             gap: 0.75rem;
             flex-shrink: 0;
+        }
+        /* ✅ 카테고리 네비게이션 스타일 */
+        .category-nav {
+          list-style: none;
+          display: flex;
+          gap: 20px;
+          padding: 0;
+          width: 100%; /* 헤더 전체 너비 사용 */
+          margin-top: 1rem;
+          border-top: 1px solid #3e3e3e;
+        }
+        .category-nav li {
+          cursor: pointer;
+          padding: 5px 10px;
+          border-radius: 5px;
+          transition: all 0.2s ease;
+          color: #888;
+        }
+        .category-nav li:hover {
+          color: #ddd;
+          background-color: #333;
+        }
+        .category-nav li.active {
+          color: #0e639c; /* Accent color */
+          font-weight: bold;
+          background-color: rgba(14, 99, 156, 0.1);
+        }
+        /* ✅ 포스트 카드에 붙는 카테고리 뱃지 스타일 */
+        .post-category-badge {
+          display: inline-block;
+          background-color: #3e3e3e;
+          color: #ccc;
+          padding: 3px 8px;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          margin-bottom: 0.5rem;
+          align-self: flex-start; /* 왼쪽 정렬 */
         }
       `}</style>
     </div>
@@ -282,17 +302,17 @@ function App() {
 }
 
 
-// ✅ WriteModal 컴포넌트 수정: 수정 모드 지원
 function WriteModal({ 
   writeTitle, setWriteTitle, 
+  writeCategory, setWriteCategory,
   writeContent, setWriteContent, 
   handleImageUpload, uploading, 
   fileInputRef, addPost, closeModal,
-  updatePost, editingPost // ✅ 추가된 props
+  updatePost, editingPost
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const contentTextAreaRef = useRef(null);
-
+  
   // (useEffect 및 드래그앤드롭 핸들러는 기존과 동일)
   useEffect(() => {
     const textAreaElement = contentTextAreaRef.current;
@@ -300,41 +320,24 @@ function WriteModal({
       const handleKeyDown = (e) => {
         if (e.shiftKey && e.key === 'Enter') {
           e.preventDefault();
-          const start = e.target.selectionStart;
-          const end = e.target.selectionEnd;
-          const text = e.target.value;
-          let newText = '';
-          if (text.substring(start - 1, start) === '\n' || text.length === 0) {
-              newText = '<p></p>';
-          } else {
-              newText = '\n<p></p>';
-          }
+          const start = e.target.selectionStart; const end = e.target.selectionEnd; const text = e.target.value;
+          let newText = (text.substring(start - 1, start) === '\n' || text.length === 0) ? '<p></p>' : '\n<p></p>';
           const updatedContent = text.substring(0, start) + newText + text.substring(end);
           setWriteContent(updatedContent);
-          setTimeout(() => {
-            const newCursorPosition = start + newText.indexOf('</p>');
-            e.target.selectionStart = newCursorPosition;
-            e.target.selectionEnd = newCursorPosition;
-          }, 0);
+          setTimeout(() => { const newCursorPosition = start + newText.indexOf('</p>'); e.target.selectionStart = newCursorPosition; e.target.selectionEnd = newCursorPosition; }, 0);
         }
       };
       textAreaElement.addEventListener('keydown', handleKeyDown);
-      return () => {
-        textAreaElement.removeEventListener('keydown', handleKeyDown);
-      };
+      return () => { textAreaElement.removeEventListener('keydown', handleKeyDown); };
     }
   }, [setWriteContent]); 
   const handleDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
   const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); };
   const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); if (!isDragging) setIsDragging(true); };
   const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+    e.preventDefault(); e.stopPropagation(); setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      handleImageUpload(file);
-      e.dataTransfer.clearData();
+      const file = e.dataTransfer.files[0]; handleImageUpload(file); e.dataTransfer.clearData();
     }
   };
 
@@ -342,12 +345,16 @@ function WriteModal({
     <div className="modal-overlay" onClick={closeModal}>
       <div className="write-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          {/* ✅ 수정 모드에 따라 제목 변경 */}
           <h3>{editingPost ? '글 수정' : '새 글 작성'}</h3>
           <button className="close-btn" onClick={closeModal}>×</button>
         </div>
         
         <div className="modal-body" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
+          {/* ✅ className 수정 */}
+          <select className="category-select" value={writeCategory} onChange={(e) => setWriteCategory(e.target.value)}>
+            <option value="공부">공부</option>
+            <option value="일상">일상</option>
+          </select>
           <input type="text" placeholder="제목을 입력하세요" value={writeTitle} onChange={(e) => setWriteTitle(e.target.value)} className="title-input" />
           <textarea ref={contentTextAreaRef} placeholder="내용을 입력하거나 이미지를 드래그 앤 드롭하세요." value={writeContent} onChange={(e) => setWriteContent(e.target.value)} className={`content-textarea ${isDragging ? 'drag-over' : ''}`} rows="15" />
           <input type="file" ref={fileInputRef} onChange={(e) => handleImageUpload(e.target.files[0])} style={{ display: 'none' }} accept="image/*" />
@@ -359,7 +366,6 @@ function WriteModal({
             
             <div className="action-buttons">
               <button className="cancel-btn" onClick={closeModal}>취소</button>
-              {/* ✅ 수정 모드에 따라 버튼 기능 및 텍스트 변경 */}
               <button className="publish-btn" onClick={editingPost ? updatePost : addPost}>
                 {editingPost ? '수정' : '작성'}
               </button>
@@ -372,13 +378,12 @@ function WriteModal({
 }
 
 
-// ✅ ReadModal 컴포넌트 수정: 하단에 버튼 추가
 function ReadModal({ posts, currentPostIndex, closeModal, handleEdit, deletePost }) {
   const post = posts[currentPostIndex];
   if (!post) return null;
 
   const createMarkup = (htmlContent) => {
-    return { __html: htmlContent }; // 줄바꿈 처리는 CSS로 관리하는 것이 더 유연합니다.
+    return { __html: htmlContent };
   };
 
   return (
@@ -386,6 +391,8 @@ function ReadModal({ posts, currentPostIndex, closeModal, handleEdit, deletePost
       <div className="read-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div>
+            {/* ✅ 카테고리 뱃지 추가 */}
+            <span className="post-category-badge">{post.category}</span>
             <h3>{post.title}</h3>
             <time>{new Date(post.created_at).toLocaleString('ko-KR')}</time>
           </div>
@@ -394,8 +401,8 @@ function ReadModal({ posts, currentPostIndex, closeModal, handleEdit, deletePost
         <div className="modal-body">
           <div className="content" dangerouslySetInnerHTML={createMarkup(post.content)} />
         </div>
-        {/* ✅ 수정/삭제 버튼이 있는 하단 영역 추가 */}
         <div className="modal-footer">
+          {/* ✅ cancel-btn을 edit-btn으로 클래스명 변경 */}
           <button className="edit-btn" onClick={() => handleEdit(post)}>수정</button>
           <button className="delete-btn" style={{backgroundColor: '#f44747', color: 'white'}} onClick={() => deletePost(post.id)}>삭제</button>
         </div>
