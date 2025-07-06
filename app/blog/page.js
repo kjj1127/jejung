@@ -1,18 +1,85 @@
 'use client';
 
 import './blog.css';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
 
-// App 컴포넌트는 메인 페이지 로직을 담당합니다.
+// --- 1. 인증(Auth) 상태 관리를 위한 Context 설정 ---
+const AuthContext = createContext();
+
+export const useAuth = () => {
+  return useContext(AuthContext);
+};
+
+const AuthProvider = ({ children }) => {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setLoading(false);
+    };
+    getSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const value = {
+    session,
+    signOut: () => supabase.auth.signOut(),
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
+};
+
+// --- 2. 로그인 모달 컴포넌트 ---
+function LoginModal({ closeModal }) {
+    return (
+        <div className="modal-overlay" onClick={closeModal}>
+            <div className="auth-modal" onClick={e => e.stopPropagation()}>
+                <Auth
+                    supabaseClient={supabase}
+                    appearance={{ theme: ThemeSupa }}
+                    theme="dark"
+                    providers={[]}
+                    localization={{
+                        variables: {
+                            sign_in: { email_label: '이메일', password_label: '비밀번호', button_label: '로그인', social_provider_text: '{{provider}} 계정으로 로그인' },
+                            sign_up: { email_label: '이메일', password_label: '비밀번호', button_label: '회원가입', social_provider_text: '{{provider}} 계정으로 가입' }
+                        }
+                    }}
+                />
+            </div>
+        </div>
+    );
+}
+
+// --- 3. 메인 앱 컴포넌트 ---
 function App() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [readModal, setReadModal] = useState(false);
   const [writeModal, setWriteModal] = useState(false);
+  const [loginModal, setLoginModal] = useState(false);
   
   const [writeTitle, setWriteTitle] = useState('');
-  const [writeCategory, setWriteCategory] = useState('공부'); // ✅ 기본 카테고리 설정
+  const [writeCategory, setWriteCategory] = useState('공부');
   const [writeContent, setWriteContent] = useState('');
   const [editingPost, setEditingPost] = useState(null);
 
@@ -20,30 +87,29 @@ function App() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // ✅ [신규] 선택된 카테고리를 관리하는 상태
   const [selectedCategory, setSelectedCategory] = useState('전체');
+
+  const { session, signOut } = useAuth(); 
 
   useEffect(() => {
     fetchPosts();
   }, []);
 
+  useEffect(() => {
+    if (session) {
+      setLoginModal(false);
+    }
+  }, [session]);
+
   const fetchPosts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('blog')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching posts: ', error);
-    } else {
-      setPosts(data);
-    }
+    const { data, error } = await supabase.from('blog').select('*').order('created_at', { ascending: false });
+    if (error) { console.error('Error fetching posts: ', error); } 
+    else { setPosts(data); }
     setLoading(false);
   };
   
   const runImageCleanup = async () => {
-    // (기존 코드와 동일)
     if (!window.confirm('정말로 사용하지 않는 이미지 정리를 시작할까요?\n이 작업은 서버의 파일을 영구적으로 삭제합니다.')) return;
     try {
       alert('서버로부터 모든 게시글 데이터를 가져와 분석을 시작합니다. 잠시만 기다려주세요.');
@@ -69,7 +135,6 @@ function App() {
   };
 
   const handleImageUpload = async (file) => {
-    // (기존 코드와 동일)
     if (!file) return;
     if (!file.type.startsWith('image/')) { alert('이미지 파일만 업로드할 수 있습니다.'); return; }
     setUploading(true);
@@ -95,7 +160,7 @@ function App() {
     setWriteModal(false);
     setEditingPost(null);
     setWriteTitle('');
-    setWriteCategory('공부'); // ✅ 모달 닫을 때 기본값으로
+    setWriteCategory('공부');
     setWriteContent('');
   };
   
@@ -103,7 +168,7 @@ function App() {
     if (writeTitle.trim() === '') { alert('제목을 입력하세요.'); return; }
     const { data, error } = await supabase
       .from('blog')
-      .insert([{ title: writeTitle, category: writeCategory, content: writeContent }])
+      .insert([{ title: writeTitle, category: writeCategory, content: writeContent, user_id: session.user.id }])
       .select();
 
     if (error) { console.error('Error adding post: ', error); } 
@@ -139,7 +204,6 @@ function App() {
     setWriteModal(true);
   };
 
-  // ✅ [신규] 렌더링할 포스트를 필터링하는 로직
   const filteredPosts = posts.filter(post => 
     selectedCategory === '전체' ? true : post.category === selectedCategory
   );
@@ -154,14 +218,17 @@ function App() {
           <p>custom blog</p>
         </div>
         <div className="header-actions">
-          <button className="cleanup-btn" onClick={runImageCleanup}>
-            이미지 정리
-          </button>
-          <button className="write-btn" onClick={() => setWriteModal(true)}>
-            + 새 글 작성
-          </button>
+          {session ? (
+            <>
+              <span className="user-email dpnone">{session.user.email}</span>
+              <button className="cleanup-btn" onClick={signOut}>로그아웃</button>
+              <button className="cleanup-btn" onClick={runImageCleanup}>이미지 정리</button>
+              <button className="write-btn" onClick={() => setWriteModal(true)}>+ 새 글 작성</button>
+            </>
+          ) : (
+            <button className="write-btn" onClick={() => setLoginModal(true)}>로그인</button>
+          )}
         </div>
-        {/* ✅ 카테고리 필터링 UI 수정 */}
         <ul className="category-nav">
           <li className={selectedCategory === '전체' ? 'active' : ''} onClick={() => setSelectedCategory('전체')}>전체</li>
           <li className={selectedCategory === '공부' ? 'active' : ''} onClick={() => setSelectedCategory('공부')}>공부</li>
@@ -169,21 +236,18 @@ function App() {
         </ul>
       </header>
 
-      {/* ✅ filteredPosts를 사용하여 렌더링 */}
       <main className="main-content">
         {filteredPosts.length === 0 ? (
           <div className="empty-state">
             <p>아직 작성된 글이 없습니다.</p>
             {selectedCategory !== '전체' && <p>'{selectedCategory}' 카테고리에는 글이 없네요!</p>}
-            <button onClick={() => setWriteModal(true)}>첫 번째 글 작성하기</button>
           </div>
         ) : (
           <div className="posts-grid">
-            {filteredPosts.map((post, i) => (
+            {filteredPosts.map((post) => (
               <article className="post-card" key={post.id}>
                 <div className="post-content">
                   <span className="post-category-badge">{post.category}</span>
-                  {/* ✅ filteredPosts의 인덱스가 아닌 원본 posts의 인덱스를 찾아야 함 */}
                   <h2 onClick={() => { 
                       const originalIndex = posts.findIndex(p => p.id === post.id);
                       setCurrentPostIndex(originalIndex);
@@ -204,104 +268,47 @@ function App() {
         )}
       </main>
 
-      {writeModal && (
+      {session && writeModal && (
         <WriteModal 
-          writeTitle={writeTitle}
-          setWriteTitle={setWriteTitle}
-          writeCategory={writeCategory}
-          setWriteCategory={setWriteCategory}
-          writeContent={writeContent}
-          setWriteContent={setWriteContent}
-          handleImageUpload={handleImageUpload}
-          uploading={uploading}
-          fileInputRef={fileInputRef}
-          addPost={addPost}
-          updatePost={updatePost}
-          editingPost={editingPost}
+          writeTitle={writeTitle} setWriteTitle={setWriteTitle}
+          writeCategory={writeCategory} setWriteCategory={setWriteCategory}
+          writeContent={writeContent} setWriteContent={setWriteContent}
+          handleImageUpload={handleImageUpload} uploading={uploading} fileInputRef={fileInputRef}
+          addPost={addPost} updatePost={updatePost} editingPost={editingPost}
           closeModal={closeWriteModal}
         />
       )}
 
       {readModal && (
         <ReadModal 
-          posts={posts} 
-          currentPostIndex={currentPostIndex} 
+          posts={posts} currentPostIndex={currentPostIndex}
           closeModal={() => setReadModal(false)} 
-          handleEdit={handleEdit}
-          deletePost={deletePost}
+          handleEdit={handleEdit} deletePost={deletePost}
+          session={session}
         />
       )}
       
-      {/* ✅ 카테고리 필터 UI 스타일 추가 */}
+      {loginModal && <LoginModal closeModal={() => setLoginModal(false)} />}
+      
       <style jsx>{`
-        .header-actions {
-          display: flex;
-          gap: 10px;
-          align-items: center;
-        }
-        .cleanup-btn {
-          background-color: #555;
-          color: white;
-          border: none;
-          padding: 10px 15px;
-          border-radius: 5px;
-          cursor: pointer;
-          font-size: 14px;
-        }
-        .cleanup-btn:hover {
-          background-color: #777;
-        }
-        .modal-footer {
-            padding: 1rem 1.5rem;
-            border-top: 1px solid #3e3e3e;
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-            flex-shrink: 0;
-        }
-        /* ✅ 카테고리 네비게이션 스타일 */
-        .category-nav {
-          list-style: none;
-          display: flex;
-          gap: 20px;
-          padding: 0;
-          width: 100%; /* 헤더 전체 너비 사용 */
-          margin-top: 1rem;
-          border-top: 1px solid #3e3e3e;
-        }
-        .category-nav li {
-          cursor: pointer;
-          padding: 5px 10px;
-          border-radius: 5px;
-          transition: all 0.2s ease;
-          color: #888;
-        }
-        .category-nav li:hover {
-          color: #ddd;
-          background-color: #333;
-        }
-        .category-nav li.active {
-          color: #0e639c; /* Accent color */
-          font-weight: bold;
-          background-color: rgba(14, 99, 156, 0.1);
-        }
-        /* ✅ 포스트 카드에 붙는 카테고리 뱃지 스타일 */
-        .post-category-badge {
-          display: inline-block;
-          background-color: #3e3e3e;
-          color: #ccc;
-          padding: 3px 8px;
-          border-radius: 12px;
-          font-size: 0.75rem;
-          margin-bottom: 0.5rem;
-          align-self: flex-start; /* 왼쪽 정렬 */
-        }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .cleanup-btn { background-color: #555; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .cleanup-btn:hover { background-color: #777; }
+        .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid #3e3e3e; display: flex; justify-content: flex-end; gap: 0.75rem; flex-shrink: 0; }
+        .category-nav { list-style: none; display: flex; gap: 20px; padding: 0; width: 100%; margin-top: 1rem; border-top: 1px solid #3e3e3e; }
+        .category-nav li { cursor: pointer; padding: 5px 10px; border-radius: 5px; transition: all 0.2s ease; color: #888; }
+        .category-nav li:hover { color: #ddd; background-color: #333; }
+        .category-nav li.active { color: #0e639c; font-weight: bold; background-color: rgba(14, 99, 156, 0.1); }
+        .post-category-badge { display: inline-block; background-color: #3e3e3e; color: #ccc; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; margin-bottom: 0.5rem; align-self: flex-start; }
+        .category-select { width: 100%; background-color: #252526; border: 1px solid #3e3e3e; color: #d4d4d4; padding: 0.8rem; border-radius: 5px; margin-bottom: 1rem; font-size: 1rem; }
+        .user-email { color: #ccc; font-size: 0.9rem; }
+        .auth-modal { width: 90%; max-width: 400px; background-color: #282828; padding: 2rem; border-radius: 8px; }
       `}</style>
     </div>
   );
 }
 
-
+// --- 4. 글쓰기(Write) 모달 컴포넌트 ---
 function WriteModal({ 
   writeTitle, setWriteTitle, 
   writeCategory, setWriteCategory,
@@ -313,7 +320,6 @@ function WriteModal({
   const [isDragging, setIsDragging] = useState(false);
   const contentTextAreaRef = useRef(null);
   
-  // (useEffect 및 드래그앤드롭 핸들러는 기존과 동일)
   useEffect(() => {
     const textAreaElement = contentTextAreaRef.current;
     if (textAreaElement) {
@@ -331,6 +337,7 @@ function WriteModal({
       return () => { textAreaElement.removeEventListener('keydown', handleKeyDown); };
     }
   }, [setWriteContent]); 
+
   const handleDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
   const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); };
   const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); if (!isDragging) setIsDragging(true); };
@@ -350,7 +357,6 @@ function WriteModal({
         </div>
         
         <div className="modal-body" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
-          {/* ✅ className 수정 */}
           <select className="category-select" value={writeCategory} onChange={(e) => setWriteCategory(e.target.value)}>
             <option value="공부">공부</option>
             <option value="일상">일상</option>
@@ -377,21 +383,18 @@ function WriteModal({
   );
 }
 
-
-function ReadModal({ posts, currentPostIndex, closeModal, handleEdit, deletePost }) {
+// --- 5. 글 읽기(Read) 모달 컴포넌트 ---
+function ReadModal({ posts, currentPostIndex, closeModal, handleEdit, deletePost, session }) {
   const post = posts[currentPostIndex];
   if (!post) return null;
 
-  const createMarkup = (htmlContent) => {
-    return { __html: htmlContent };
-  };
+  const createMarkup = (htmlContent) => ({ __html: htmlContent });
 
   return (
     <div className="modal-overlay" onClick={closeModal}>
       <div className="read-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            {/* ✅ 카테고리 뱃지 추가 */}
             <span className="post-category-badge">{post.category}</span>
             <h3>{post.title}</h3>
             <time>{new Date(post.created_at).toLocaleString('ko-KR')}</time>
@@ -401,14 +404,22 @@ function ReadModal({ posts, currentPostIndex, closeModal, handleEdit, deletePost
         <div className="modal-body">
           <div className="content" dangerouslySetInnerHTML={createMarkup(post.content)} />
         </div>
-        <div className="modal-footer">
-          {/* ✅ cancel-btn을 edit-btn으로 클래스명 변경 */}
-          <button className="edit-btn" onClick={() => handleEdit(post)}>수정</button>
-          <button className="delete-btn" style={{backgroundColor: '#f44747', color: 'white'}} onClick={() => deletePost(post.id)}>삭제</button>
-        </div>
+        {session && (
+          <div className="modal-footer">
+            <button className="edit-btn" onClick={() => handleEdit(post)}>수정</button>
+            <button className="delete-btn" style={{backgroundColor: '#f44747', color: 'white'}} onClick={() => deletePost(post.id)}>삭제</button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export default App;
+// --- 6. 최종 페이지 Export ---
+export default function Page() {
+    return (
+        <AuthProvider>
+            <App />
+        </AuthProvider>
+    );
+}
