@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabaseClient';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 
-// --- 1. 인증(Auth) 상태 관리를 위한 Context 설정 ---
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -48,7 +47,6 @@ const AuthProvider = ({ children }) => {
   );
 };
 
-// --- 2. 로그인 모달 컴포넌트 ---
 function LoginModal({ closeModal }) {
     return (
         <div className="modal-overlay" onClick={closeModal}>
@@ -70,7 +68,6 @@ function LoginModal({ closeModal }) {
     );
 }
 
-// --- 3. 메인 앱 컴포넌트 ---
 function App() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -168,7 +165,7 @@ function App() {
     if (writeTitle.trim() === '') { alert('제목을 입력하세요.'); return; }
     const { data, error } = await supabase
       .from('blog')
-      .insert([{ title: writeTitle, category: writeCategory, content: writeContent, user_id: session.user.id }])
+      .insert([{ title: writeTitle, category: writeCategory, content: writeContent }])
       .select();
 
     if (error) { console.error('Error adding post: ', error); } 
