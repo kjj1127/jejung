@@ -20,6 +20,7 @@ function App() {
   const [readModal, setReadModal] = useState(false);
   const [currentPostIndex, setCurrentPostIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('공부');
+  const [isHeaderLoaded, setIsHeaderLoaded] = useState(false);
 
   // DOM 요소를 직접 참조하기 위한 Ref
   const sectionRefs = useRef({});
@@ -68,8 +69,10 @@ function App() {
   useEffect(() => {
     const header = document.querySelector('header');
     const gnb = document.querySelector('.gnb');
+    let headerLoaded = false;
     if (header) {
       header.classList.add('loaded');
+      setIsHeaderLoaded(true);
       setTimeout(() => {
         if(gnb) gnb.style.opacity = '1';
       }, 700);
@@ -111,8 +114,10 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="fixed-header">
-        <div className="gnb">
+      <header
+          className={`${visualActiveSection} fixed-header ${isHeaderLoaded ? 'loaded' : ''}`}
+      >
+        <div className='gnb'>
           <a href="#work" onClick={(e) => handleMenuClick(e, 'work')} className="logo">LOGO</a>
           <ul className="nav-links" onMouseLeave={() => setHoveredSection(null)}>
             <Highlighter visualActiveSection={visualActiveSection} />
@@ -135,7 +140,7 @@ function App() {
         </div>
       </header>
       
-      <main className="contents-wrap" ref={contentsWrapRef}>
+      <main className={`contents-wrap ${visualActiveSection}`} ref={contentsWrapRef}>
         {MENU_ITEMS.map(item => {
           const sectionId = item.toLowerCase();
           if (sectionId === 'blog') {

@@ -1,8 +1,8 @@
 body {font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: #f0f0f0; margin: 0; overflow: unset;}
 .fixed-header {position: fixed; top: 8vh; left: 50%; transform: translateX(-50%); z-index: 1000;}
-.fixed-header:before{position: absolute; left: 50%; transform: translateX(-50%); content: ''; width: 69px; height: 69px; background-color: #262223; border-radius: 50px; transition: width 1s cubic-bezier(0.9, -0.4, 0.32, 1.6);}
+.fixed-header:before{position: absolute; left: 50%; transform: translateX(-50%); content: ''; width: 69px; height: 69px; background-color: #262223; border-radius: 50px; transition: width 1s cubic-bezier(0.9, -0.4, 0.32, 1.6), background 1s;}
 .fixed-header.loaded:before{width: 100%;}
-.gnb {display: flex; align-items: center; background-color: #262223; padding: 10px 15px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); opacity: 0; transition: opacity 1s;}
+.gnb {display: flex; align-items: center; background-color: #262223; padding: 10px 15px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); opacity: 0; transition: 1s;}
 .logo {padding: 0 15px; margin-right: 20px; color: #ddc6b6; text-decoration: none; font-weight: bold; font-size: 18px; z-index: 1;}
 .nav-links {position: relative; display: flex; list-style: none; margin: 0; padding: 0;}
 .nav-links li {cursor: pointer;}
@@ -14,14 +14,43 @@ body {font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 .contents-wrap section {height: 100%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;}
 .contents-wrap section:last-child {border-bottom: none;}
 .contents-wrap section h1 {font-size: 5rem; color: #333;}
-#work {background-color: #fcf1e3;}
-#work h1{color: #e8492a;}
-#services {background-color: #d0d8c3;}
-#services h1{color: #014421;}
-#blog {background-color: #dad7b6;}
-#blog h1{color: #545334;}
-#contact {background-color: #bcddfc;}
-#contact h1{color: #557899;}
+
+.fixed-header.work:before,
+.work .gnb{background-color: #e8492a;}
+.fixed-header.services:before,
+.services .gnb{background-color: #014421;}
+.fixed-header.blog:before,
+.blog .gnb{background-color: #545334;}
+.fixed-header.contact:before,
+.contact .gnb{background-color: #557899;}
+.work .logo,
+.work .nav-links li a{color: #fcf1e3;}
+.services .logo,
+.services .nav-links li a{color: #d0d8c3;}
+.blog .logo,
+.blog .nav-links li a{color: #dad7b6;} 
+.contact .logo,
+.contact .nav-links li a{color: #bcddfc;}
+#work,
+.work .highlighter{background-color: #fcf1e3;}
+#work h1,
+.work .nav-links li.active a{color: #e8492a;}
+#services,
+.services .highlighter{background-color: #d0d8c3;}
+#services h1,
+.services .nav-links li.active a{color: #014421;}
+#blog,
+.blog .highlighter {background-color: #dad7b6;}
+#blog h1,
+.blog .nav-links li.active a{color: #545334;}
+#contact,
+.contact .highlighter{background-color: #bcddfc;}
+#contact h1,
+.contact .nav-links li.active a{color: #557899;}
+.work.contents-wrap{border-color: #e8492a;}
+.services.contents-wrap{border-color: #014421;}
+.blog.contents-wrap{border-color: #545334;}
+.contact.contents-wrap{border-color: #557899;}
 @media (max-width: 768px) {
   .fixed-header {top: 7vh; left: 25%;}
   .fixed-header:before {display: none;}
