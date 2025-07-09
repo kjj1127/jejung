@@ -152,7 +152,7 @@ function App() {
                   {filteredPosts.map((post, index) => (
                     <article className="post-card" key={post.id}>
                       <div className="post-content">
-                        <span className="post-category-badge">{post.category}</span>
+                        <span className="post-category-badge">[{post.category}]</span>
                         <h2 onClick={() => {
                           const originalIndex = posts.findIndex(p => p.id === post.id);
                           setCurrentPostIndex(originalIndex);
@@ -161,7 +161,7 @@ function App() {
                           {post.title}
                         </h2>
                         <p className="post-preview">
-                          {post.content.replace(/<[^>]*>/g, '').substring(0, 120)}...
+                          {post.content.replace(/<[^>]*>/g, '').substring(0, 120)}
                         </p>
                         <div className="post-meta">
                           <time>{new Date(post.created_at).toLocaleDateString('ko-KR')}</time>
@@ -170,6 +170,13 @@ function App() {
                     </article>
                   ))}
                 </div>
+                {readModal && (
+                  <ReadModal 
+                    posts={posts} 
+                    currentPostIndex={currentPostIndex}
+                    closeModal={() => setReadModal(false)} 
+                  />
+                )}
               </section>
             );
           } 
@@ -186,13 +193,6 @@ function App() {
           }
         })}
       </main>
-      {readModal && (
-        <ReadModal 
-          posts={posts} 
-          currentPostIndex={currentPostIndex}
-          closeModal={() => setReadModal(false)} 
-        />
-      )}
     </div>
   );
 }
@@ -209,7 +209,7 @@ function ReadModal({ posts, currentPostIndex, closeModal }) {
       <div className="read-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <span className="post-category-badge">{post.category}</span>
+            <span className="post-category-badge">[{post.category}]</span>
             <h3>{post.title}</h3>
             <time>{new Date(post.created_at).toLocaleString('ko-KR')}</time>
           </div>
