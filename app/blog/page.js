@@ -230,6 +230,7 @@ function App() {
           <li className={selectedCategory === '전체' ? 'active' : ''} onClick={() => setSelectedCategory('전체')}>전체</li>
           <li className={selectedCategory === '공부' ? 'active' : ''} onClick={() => setSelectedCategory('공부')}>공부</li>
           <li className={selectedCategory === '일상' ? 'active' : ''} onClick={() => setSelectedCategory('일상')}>일상</li>
+          <li className={selectedCategory === '퇴사일지' ? 'active' : ''} onClick={() => setSelectedCategory('퇴사일지')}>퇴사일지</li>
         </ul>
       </header>
 
@@ -357,6 +358,7 @@ function WriteModal({
           <select className="category-select" value={writeCategory} onChange={(e) => setWriteCategory(e.target.value)}>
             <option value="공부">공부</option>
             <option value="일상">일상</option>
+            <option value="퇴사일지">퇴사일지</option>
           </select>
           <input type="text" placeholder="제목을 입력하세요" value={writeTitle} onChange={(e) => setWriteTitle(e.target.value)} className="title-input" />
           <textarea ref={contentTextAreaRef} placeholder="내용을 입력하거나 이미지를 드래그 앤 드롭하세요." value={writeContent} onChange={(e) => setWriteContent(e.target.value)} className={`content-textarea ${isDragging ? 'drag-over' : ''}`} rows="15" />
