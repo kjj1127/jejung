@@ -1,0 +1,2444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>닷지 게임: 3인 협동 & 합산/개인 점수!</title>
+    <style>
+        /* CSS 스타일 */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #222;
+            margin: 0;
+            overflow: hidden; /* 스크롤바 방지 */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #eee;
+        }
+
+        h1 {
+            color: #00f0f0;
+            margin-bottom: 15px;
+        }
+
+        #game-container { /* 게임 영역과 UI를 담을 컨테이너 */
+            position: relative; /* 자식 요소들의 absolute 포지셔닝 기준 */
+            width: 1250px; /* 맵 + 정보 영역을 담을 충분한 너비 */
+            height: 700px;
+            display: flex;
+            justify-content: flex-start; /* 왼쪽 정렬 */
+            align-items: flex-start; /* 상단 정렬 */
+            gap: 20px; /* 맵과 정보 영역 사이 간격 */
+        }
+
+        #game-area {
+            width: 1000px; /* 맵 너비 더욱 확장 */
+            height: 700px; /* 맵 높이 더욱 확장 */
+            background-color: #000;
+            border: 5px solid #00f0f0;
+            position: relative;
+            overflow: hidden; /* 요소들이 밖으로 나가지 않게 */
+        }
+
+        #info-area {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; /* 텍스트를 오른쪽 정렬 */
+            background-color: rgba(0, 0, 0, 0.5); /* 반투명 배경 */
+            padding: 10px 15px; /* 패딩 조정 */
+            border-radius: 8px;
+            z-index: 10; /* 게임 요소들 위에 표시 */
+            width: 200px; /* 정보 영역 너비 지정 */
+            height: fit-content; /* 내용에 맞춰 높이 자동 조절 */
+            border: 1px solid #00f0f0; /* 테두리 추가 */
+        }
+
+        #total-score-display {
+            font-size: 2.2em; /* 총 점수를 가장 크게 */
+            color: #ffe066; /* 밝은 노란색 */
+            margin-bottom: 5px;
+            text-shadow: 0 0 8px rgba(255, 224, 102, 0.7);
+        }
+
+        #individual-scores {
+            display: flex;
+            flex-direction: column; /* 개인 점수를 세로로 나열 */
+            align-items: flex-end; /* 오른쪽 정렬 */
+            gap: 3px; /* 간격 */
+            margin-top: 5px;
+            border-top: 1px dashed #555;
+            padding-top: 5px;
+        }
+
+        .score-display {
+            font-size: 1.4em; /* 개인 점수 크기 */
+            color: #ffcc00;
+            white-space: nowrap;
+        }
+        
+        #time-display {
+            font-size: 1.4em; /* 시간 크기 */
+            color: #ffcc00;
+            white-space: nowrap;
+            margin-top: 10px;
+            border-top: 1px dashed #555;
+            padding-top: 5px;
+        }
+
+        .player { /* 세 플레이어가 공통으로 사용하는 스타일 */
+            width: 30px;
+            height: 30px;
+            position: absolute;
+            border: 2px solid #fff;
+            transition: background-color 0.1s ease-in-out, width 0.1s ease-in-out, height 0.1s ease-in-out; /* 무적, 크기 전환 애니메이션 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+        }
+
+        #player1 {
+            background-color: #ff00ff; /* Player 1 색상 (마젠타) */
+        }
+
+        #player2 {
+            background-color: #00ffff; /* Player 2 색상 (시안) */
+        }
+
+        #player3 {
+            background-color: #ffa500; /* Player 3 색상 (오렌지) */
+        }
+
+        .player.invincible {
+            background-color: #00ff00; /* 무적 상태일 때 색상 */
+            box-shadow: 0 0 15px 5px rgba(0, 255, 0, 0.7); /* 무적 상태 테두리 빛 효과 */
+        }
+
+        .player.shrunk { /* 축소 상태일 때 색상 */
+            background-color: #99ff99; /* 밝은 녹색 계열 */
+            border-color: #00cc00; /* 테두리 색상 변경 */
+        }
+
+        .invincibility-countdown, .shrink-countdown {
+            font-size: 0.9em;
+            font-weight: bold;
+            color: black; /* 카운트다운 숫자 색상 */
+            text-shadow: 0 0 3px #fff;
+            position: absolute;
+            opacity: 0;
+            transition: opacity 0.2s;
+            bottom: -18px; /* 플레이어 아래에 표시 */
+        }
+        .invincibility-countdown {
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .shrink-countdown {
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: -35px; /* 무적 카운트다운 아래에 표시 */
+        }
+
+
+        .player.invincible .invincibility-countdown,
+        .player.shrunk .shrink-countdown {
+            opacity: 1; /* 활성화될 때만 보이게 */
+        }
+        
+        .player.dead {
+            opacity: 0; /* 죽으면 투명하게 */
+            pointer-events: none; /* 클릭 등 이벤트 방지 */
+        }
+
+        .bullet {
+            width: 15px;
+            height: 15px;
+            background-color: #f00; /* 총알 색상 */
+            border-radius: 50%;
+            position: absolute;
+            z-index: 2;
+        }
+
+        .item { /* 무적 아이템 */
+            width: 25px;
+            height: 25px;
+            background-color: #00f0f0; /* 무적 아이템 색상 (하늘색) */
+            border-radius: 5px;
+            position: absolute;
+            border: 2px solid #fff;
+            box-shadow: 0 0 8px rgba(0, 240, 240, 0.8); /* 무적 아이템 그림자 유지 */
+            cursor: pointer;
+            z-index: 3;
+        }
+
+        .shrink-item { /* 축소 아이템 */
+            width: 25px;
+            height: 25px;
+            background-color: #9933ff; /* 보라색 계열 */
+            border-radius: 50%; /* 원형 */
+            position: absolute;
+            border: 2px solid #00cc00; /* 축소 아이템 테두리 색상 변경 */
+            /* box-shadow: 0 0 8px rgba(153, 51, 255, 0.8);  축소 아이템은 그림자 없음 */
+            cursor: pointer;
+            z-index: 3;
+            animation: pulse-shrink 1s infinite alternate; /* 축소 아이템 깜빡임 */
+        }
+
+        @keyframes pulse-shrink {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.1); opacity: 1; }
+        }
+
+        .revive-item {
+            width: 35px; /* 부활 아이템은 좀 더 크게 */
+            height: 35px;
+            background-color: #ff9900; /* 부활 아이템 색상 (주황색) */
+            border-radius: 50%; /* 원형 */
+            position: absolute;
+            border: 3px solid #fff;
+            box-shadow: 0 0 10px 5px rgba(255, 153, 0, 0.8);
+            cursor: pointer;
+            z-index: 3;
+            animation: pulse-revive 1s infinite alternate; /* 부활 아이템 깜빡임 */
+        }
+
+        @keyframes pulse-revive {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; } /* 더 부드럽게 */
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .shield-item { /* 보호막 아이템 */
+            width: 30px;
+            height: 30px;
+            background-color: #00ee00; /* 녹색 */
+            border-radius: 50%;
+            position: absolute;
+            border: 2px solid #fff;
+            box-shadow: 0 0 10px 5px rgba(0, 238, 0, 0.8);
+            cursor: pointer;
+            z-index: 3;
+            animation: pulse-shield 1.2s infinite alternate;
+        }
+
+        @keyframes pulse-shield {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.1); opacity: 1; }
+        }
+
+        .shield-area { /* 보호 구역 */
+            position: absolute;
+            background-color: rgba(0, 255, 0, 0.3); /* 연한 녹색 반투명 */
+            border: 3px solid #00ff00;
+            border-radius: 50%;
+            z-index: 8; /* 플레이어와 총알 사이에 위치 */
+            transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+            display: flex; /* 카운트다운 텍스트를 위해 flexbox 사용 */
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 5px black;
+            font-size: 1.5em;
+        }
+
+        .boss {
+            width: 70px;
+            height: 70px;
+            background-color: #8a2be2; /* 일반 보스 색상 (보라색) */
+            border-radius: 50%;
+            position: absolute;
+            border: 3px solid #fff;
+            box-shadow: 0 0 20px 8px rgba(138, 43, 226, 0.8);
+            z-index: 4;
+        }
+
+        .super-boss {
+            width: 120px; /* 슈퍼 보스는 훨씬 크게 */
+            height: 120px;
+            background-color: #ff0000; /* 슈퍼 보스 색상 (빨간색) */
+            border-radius: 50%;
+            position: absolute;
+            border: 5px solid #fff;
+            box-shadow: 0 0 30px 10px rgba(255, 0, 0, 0.9);
+            z-index: 6; /* 플레이어보다 위에, 폭발보다 아래 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-shadow: 0 0 5px black;
+        }
+
+        .attack-item {
+            width: 28px; /* 공격 아이템 크기 */
+            height: 28px;
+            background-color: #ffcc00; /* 공격 아이템 색상 (금색) */
+            border-radius: 50%; /* 원형 */
+            position: absolute;
+            border: 2px solid #fff;
+            box-shadow: 0 0 8px rgba(255, 204, 0, 0.8);
+            cursor: pointer;
+            z-index: 3;
+            animation: rotate 2s infinite linear; /* 회전 애니메이션 */
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .laser-preview {
+            position: absolute;
+            background-color: rgba(255, 255, 0, 0.3); /* 노란색 반투명 미리보기 */
+            z-index: 7; /* 슈퍼 보스보다 위에 */
+        }
+
+        .laser {
+            position: absolute;
+            background-color: yellow; /* 실제 레이저 색상 */
+            box-shadow: 0 0 15px 5px yellow;
+            z-index: 7;
+        }
+
+        /* Raid Boss 관련 스타일 */
+        .raid-boss {
+            width: 100px;
+            height: 100px;
+            background-color: #6a0dad; /* 어두운 보라색 */
+            border-radius: 50%;
+            position: absolute;
+            border: 4px solid #f0f; /* 마젠타 테두리 */
+            box-shadow: 0 0 25px 10px rgba(106, 13, 173, 0.9);
+            z-index: 9; /* 슈퍼보스보다 높게 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1em;
+            font-weight: bold;
+            text-shadow: 0 0 5px black;
+            animation: raid-pulse 1.5s infinite alternate;
+        }
+
+        @keyframes raid-pulse {
+            0% { transform: scale(1); box-shadow: 0 0 25px 10px rgba(106, 13, 173, 0.9); }
+            100% { transform: scale(1.05); box-shadow: 0 0 35px 15px rgba(255, 0, 255, 1); }
+        }
+
+        .kill-zone-preview {
+            position: absolute;
+            background-color: rgba(255, 0, 0, 0.4); /* 빨간색 반투명 경고 영역 */
+            border: 3px dashed #ff0000;
+            z-index: 9; /* 레이드 보스보다 아래, 플레이어보다 위 */
+        }
+
+        .safe-zone {
+            position: absolute;
+            background-color: rgba(0, 255, 0, 0.2); /* 연한 녹색 반투명 안전 구역 */
+            border: 3px solid #00ff00;
+            border-radius: 10px;
+            z-index: 9; /* 레이드 보스와 같은 레벨 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.2em;
+            text-shadow: 0 0 5px black;
+        }
+
+        .safe-zone-timer {
+            width: 80%; /* 게이지 너비 */
+            height: 10px;
+            background-color: #333;
+            border: 1px solid #00ff00;
+            margin-top: 5px;
+            overflow: hidden;
+            border-radius: 5px;
+        }
+
+        .safe-zone-fill {
+            height: 100%;
+            background-color: #00ff00;
+            width: 0%; /* 초기 너비 */
+            transition: width 0.1s linear;
+        }
+
+        /* 폭발 이펙트 */
+        .explosion {
+            position: absolute;
+            background-color: orange;
+            border-radius: 50%;
+            opacity: 0;
+            transform: scale(0);
+            animation: explode 0.3s forwards;
+            z-index: 10;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        /* 게임 시작 화면 */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 2em;
+            text-align: center;
+            z-index: 101; /* 게임 오버보다 높게 */
+        }
+
+        #start-screen h2 {
+            color: #00f0f0;
+            margin-bottom: 25px;
+            font-size: 1.5em;
+        }
+
+        #player-select-container {
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #player-select-container label {
+            font-size: 0.8em;
+            margin-bottom: 10px;
+        }
+
+        #num-players {
+            width: 60px;
+            padding: 8px;
+            font-size: 1em;
+            text-align: center;
+            border-radius: 5px;
+            border: 1px solid #00f0f0;
+            background-color: #333;
+            color: #eee;
+            margin-bottom: 20px;
+        }
+
+        #start-button {
+            padding: 12px 30px;
+            font-size: 1.2em;
+            background-color: #00f0f0;
+            color: #000;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        #start-button:hover {
+            background-color: #00cccc;
+            transform: scale(1.05);
+        }
+
+        .start-prompt {
+            font-size: 0.6em;
+            color: #ccc;
+            margin-top: 15px;
+            animation: pulse 1.5s infinite;
+        }
+
+
+        /* 게임 오버 화면 */
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 2em;
+            text-align: center;
+            z-index: 100;
+            display: none;
+        }
+
+        #game-over-screen p {
+            margin: 10px 0;
+        }
+
+        #game-over-screen .press-enter-text {
+            font-size: 0.6em;
+            color: #ccc;
+            margin-top: 15px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <h1>총알 피하기 게임</h1>
+    <div id="game-container">
+        <div id="game-area">
+            <div id="player1" class="player">
+                <span class="invincibility-countdown"></span>
+                <span class="shrink-countdown"></span>
+            </div>
+            <div id="player2" class="player">
+                <span class="invincibility-countdown"></span>
+                <span class="shrink-countdown"></span>
+            </div>
+            <div id="player3" class="player">
+                <span class="invincibility-countdown"></span>
+                <span class="shrink-countdown"></span>
+            </div>
+            </div>
+
+        <div id="info-area">
+            <div id="total-score-display">총 점수: 0</div>
+            <div id="individual-scores">
+                <div id="player1-score" class="score-display">P1 점수: 0</div>
+                <div id="player2-score" class="score-display">P2 점수: 0</div>
+                <div id="player3-score" class="score-display">P3 점수: 0</div>
+            </div>
+            <div id="time-display">시간: 0.00초</div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h2>플레이어 선택</h2>
+        <div id="player-select-container">
+            <label for="num-players">몇 명이 플레이할까요? (1~3명)</label>
+            <input type="number" id="num-players" value="1" min="1" max="3">
+        </div>
+        <button id="start-button">Start Game</button>
+        <p class="start-prompt">또는 Enter 키를 누르세요</p>
+    </div>
+
+    <div id="game-over-screen">
+        <p>게임 오버!</p>
+        <p>최종 총 점수: <span id="final-total-score">0</span></p>
+        <p>개인 점수:</p>
+        <p>P1: <span id="final-score-p1">0</span></p>
+        <p>P2: <span id="final-score-p2">0</span></p>
+        <p>P3: <span id="final-score-p3">0</span></p>
+        <p>버틴 시간: <span id="final-time">0.00초</span></p>
+        <p class="press-enter-text">아무 키 또는 Enter 키를 눌러 다시 시작</p>
+    </div>
+
+    <script>
+        // JavaScript 로직
+        const gameContainer = document.getElementById('game-container');
+        const gameArea = document.getElementById('game-area');
+        const player1El = document.getElementById('player1');
+        const player2El = document.getElementById('player2');
+        const player3El = document.getElementById('player3');
+        
+        const totalScoreDisplay = document.getElementById('total-score-display');
+        const player1ScoreDisplay = document.getElementById('player1-score');
+        const player2ScoreDisplay = document.getElementById('player2-score');
+        const player3ScoreDisplay = document.getElementById('player3-score');
+        const timeDisplay = document.getElementById('time-display');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalTotalScoreDisplay = document.getElementById('final-total-score');
+        const finalScoreP1Display = document.getElementById('final-score-p1');
+        const finalScoreP2Display = document.getElementById('final-score-p2');
+        const finalScoreP3Display = document.getElementById('final-score-p3');
+        const finalTimeDisplay = document.getElementById('final-time');
+
+        const startScreen = document.getElementById('start-screen');
+        const numPlayersInput = document.getElementById('num-players');
+        const startButton = document.getElementById('start-button');
+
+
+        // 게임 영역 크기
+        const GAME_WIDTH = gameArea.clientWidth;
+        const GAME_HEIGHT = gameArea.clientHeight;
+
+        const PLAYER_SIZE = 30; // 기본 플레이어 크기
+        const SHRUNK_PLAYER_SIZE = 15; // 축소된 플레이어 크기
+        const BULLET_SIZE = 15;
+        const ITEM_SIZE = 25;
+        const REVIVE_ITEM_SIZE = 35;
+        const SHIELD_ITEM_SIZE = 30; // 보호막 아이템 크기
+        const SHIELD_AREA_RADIUS = 100; // 보호 구역 반지름
+        const BOSS_SIZE = 70;
+        const SUPER_BOSS_SIZE = 120;
+        const RAID_BOSS_SIZE = 100; // 레이드 보스 크기
+        const PLAYER_SPEED = 5;
+        const BOSS_SPEED = 1.5;
+
+        // 난이도 조절 변수
+        let currentBulletSpeed = 2.5;
+        let currentSpawnInterval = 600;
+        const INITIAL_BULLET_COUNT = 4;
+        const DIFFICULTY_INCREASE_SCORE_INTERVAL = 15; // 총 점수 15점마다 난이도 상승
+        const SPEED_INCREASE_AMOUNT = 0.4;
+        const SPAWN_INTERVAL_DECREASE_AMOUNT = 40;
+        const MAX_BULLET_SPEED = 12;
+        const MIN_BULLET_SPAWN_INTERVAL = 80;
+
+        // 아이템 관련 변수
+        const ITEM_SPAWN_INITIAL_DELAY = 10000; // 게임 시작 후 아이템 첫 생성 딜레이 (10초)
+        const ITEM_SPAWN_INTERVAL = 10000; // 무적/축소 아이템 재생성 주기 (10초)
+        const INVINCIBILITY_DURATION = 3000; // 무적 지속 시간 (3초)
+        const BULLET_ABSORB_PERSONAL_SCORE = 1; // 총알 흡수 시 개인에게만 1점
+        const SHRINK_DURATION = 5000;
+
+        let invincibleItem = null; // 무적 아이템
+        let shrinkItem = null; // 축소 아이템
+
+        // 보호막 아이템 관련 변수
+        const SHIELD_ITEM_SPAWN_INTERVAL = 30000; // 보호막 아이템 재생성 주기 (30초)
+        const SHIELD_AREA_DURATION = 10000; // 보호 구역 유지 시간 (10초)
+        const SHIELD_BULLET_ABSORB_SCORE = 2; // 보호 구역에서 총알 흡수 시 점수
+        let shieldItem = null;
+        let shieldArea = null;
+        let shieldAreaPos = { x: 0, y: 0 }; // 보호 구역 고정 위치
+        let shieldCreatorPlayer = null; // 보호 구역을 만든 플레이어 (점수 부여용)
+        let shieldCountdownInterval = null; // 보호막 카운트다운 인터벌
+
+        // 부활 아이템 관련 변수
+        const REVIVE_ITEM_DELAY = 15000;
+        const REVIVE_INVINCIBLE_DURATION = 3000;
+        let reviveItem = null;
+        let reviveItemTimeout = null;
+        let deadPlayers = [];
+
+        // 일반 보스 (1번 보스) 관련 변수
+        const BOSS_SPAWN_SCORE_INTERVAL = 20; // 총 점수 20점마다 일반 보스 등장
+        const BOSS_DEFEAT_PERSONAL_SCORE = 5; // 일반 보스 처치 시 모든 플레이어 개인 점수 5점씩
+
+        let boss = null;
+        let bossSpawnOrderCount = 0; // 보스 등장 순서 (1, 2, 3, 4, 5...)
+
+        // 슈퍼 보스 (2번 보스) 관련 변수
+        const SUPER_BOSS_SPAWN_ORDER_MULTIPLE = 3; // 일반 보스 등장 순서가 3의 배수일 때 슈퍼 보스 등장
+        const SUPER_BOSS_DEFEAT_PERSONAL_SCORE = 30; // 슈퍼 보스 처치 시 모든 플레이어 개인 점수 30점씩
+        const ATTACK_ITEM_COUNT = 4; // 한 라운드에 생성되는 공격 아이템 수
+        const SUPER_BOSS_REQUIRED_COLLECT_ROUNDS = 3; // 슈퍼 보스를 처치하기 위해 공격 아이템을 모아야 하는 라운드 수
+        const SUPER_BOSS_LASER_CYCLE = 2500; // 슈퍼 보스 레이저 공격 주기 (2.5초)
+        const LASER_WIDTH = 12; // 레이저 굵기
+        let superBoss = null;
+        let attackItems = [];
+        let collectedAttackItems = 0; // 현재 라운드에서 모은 공격 아이템 수
+        let superBossCollectRounds = 0; // 슈퍼 보스 처치를 위한 공격 아이템 수집 라운드 카운트
+        let superBossLaserTimer = null;
+        let laserPreviewEl = null;
+        let laserEl = null;
+        let laserTargetPos = { x: 0, y: 0 };
+
+
+        // 레이드 보스 (3번 보스) 관련 변수
+        const RAID_BOSS_SPAWN_ORDER_MULTIPLE = 5; // 일반 보스 등장 순서가 5의 배수일 때 레이드 보스 등장
+        const RAID_BOSS_DEFEAT_PERSONAL_SCORE = 50; // 레이드 보스 처치 시 모든 플레이어 개인 점수 50점
+        const RAID_ATTACK_PREVIEW_DURATION = 3000; // 레이드 보스 공격 경고 시간 (3초)
+        const RAID_ATTACK_AREA_SIZE_FACTOR = 0.5; // 맵 영역의 50%를 차지
+        const SAFE_ZONE_SIZE = 100; // 안전 구역 크기
+        const SAFE_ZONE_DURATION_TO_DEFEAT = 5000; // 안전 구역에서 머물러야 할 시간 (5초)
+
+        let raidBoss = null;
+        let raidBossAttackInterval = null;
+        let killZonePreviewEl = null;
+        let raidBossCurrentAttack = null; // 현재 공격할 영역 ('top', 'bottom', 'left', 'right')
+        let raidBossAttackTimeout = null;
+
+        let safeZone = null;
+        let safeZonePlayerCount = 0; // 안전 구역 내 플레이어 수
+        let safeZoneTimer = 0; // 안전 구역에 머문 시간 (ms)
+        let safeZoneInterval = null; // 안전 구역 타이머 인터벌
+
+
+        // 총 점수 (벽에 닿는 총알 수)
+        let totalScore = 0; 
+        let currentBossSpawnScoreThreshold = BOSS_SPAWN_SCORE_INTERVAL; // 다음 일반 보스가 나올 총 점수 기준점
+
+        // 플레이어 상태 관리
+        const players = {
+            player1: {
+                el: player1El,
+                x: (GAME_WIDTH / 2) - (PLAYER_SIZE / 2) - 100,
+                y: (GAME_HEIGHT / 2) - (PLAYER_SIZE / 2),
+                isDead: false,
+                isInvincible: false,
+                invincibilityTimeout: null,
+                invincibilityCountdownInterval: null, // 무적 카운트다운 인터벌
+                isShrunk: false,
+                shrinkTimeout: null,
+                shrinkCountdownInterval: null, // 축소 카운트다운 인터벌
+                keys: { up: 'w', down: 's', left: 'a', right: 'd' },
+                invincibilityCountdownEl: player1El.querySelector('.invincibility-countdown'),
+                shrinkCountdownEl: player1El.querySelector('.shrink-countdown'),
+                personalScore: 0, // 개인 점수
+                scoreDisplayEl: player1ScoreDisplay,
+                isActive: false // 활성화 여부
+            },
+            player2: {
+                el: player2El,
+                x: (GAME_WIDTH / 2) - (PLAYER_SIZE / 2),
+                y: (GAME_HEIGHT / 2) - (PLAYER_SIZE / 2),
+                isDead: false,
+                isInvincible: false,
+                invincibilityTimeout: null,
+                invincibilityCountdownInterval: null,
+                isShrunk: false,
+                shrinkTimeout: null,
+                shrinkCountdownInterval: null,
+                keys: { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' },
+                invincibilityCountdownEl: player2El.querySelector('.invincibility-countdown'),
+                shrinkCountdownEl: player2El.querySelector('.shrink-countdown'),
+                personalScore: 0,
+                scoreDisplayEl: player2ScoreDisplay,
+                isActive: false
+            },
+            player3: {
+                el: player3El,
+                x: (GAME_WIDTH / 2) - (PLAYER_SIZE / 2) + 100,
+                y: (GAME_HEIGHT / 2) - (PLAYER_SIZE / 2),
+                isDead: false,
+                isInvincible: false,
+                invincibilityTimeout: null,
+                invincibilityCountdownInterval: null,
+                isShrunk: false,
+                shrinkTimeout: null,
+                shrinkCountdownInterval: null,
+                keys: { up: 'i', down: 'k', left: 'j', right: 'l' },
+                invincibilityCountdownEl: player3El.querySelector('.invincibility-countdown'),
+                shrinkCountdownEl: player3El.querySelector('.shrink-countdown'),
+                personalScore: 0,
+                scoreDisplayEl: player3ScoreDisplay,
+                isActive: false
+            }
+        };
+
+        let gameTimeMs = 0;
+        let gameTimeInterval = null;
+        let gameInterval;
+        let bulletSpawnIntervalId;
+        let bullets = [];
+        let isGameOver = false;
+        let isGameStarted = false; // 게임 시작 여부 플래그
+
+        // 플레이어 초기 위치 설정 및 점수 업데이트
+        function updateScoreDisplays() {
+            for (const playerKey in players) {
+                const p = players[playerKey];
+                p.el.style.left = `${p.x}px`;
+                p.el.style.top = `${p.y}px`;
+                p.scoreDisplayEl.textContent = `${playerKey.toUpperCase() === 'PLAYER1' ? 'P1' : (playerKey.toUpperCase() === 'PLAYER2' ? 'P2' : 'P3')} 점수: ${p.personalScore}`;
+                
+                // 비활성 플레이어의 점수판 숨기기
+                if (!p.isActive) {
+                    p.scoreDisplayEl.style.display = 'none';
+                } else {
+                    p.scoreDisplayEl.style.display = 'block';
+                }
+            }
+            totalScoreDisplay.textContent = `총 점수: ${totalScore}`;
+        }
+
+        // 키 입력 처리
+        const keysPressed = {};
+        document.addEventListener('keydown', (e) => {
+            keysPressed[e.key] = true;
+            if (isGameOver && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                startGame();
+            }
+            if (!isGameStarted && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                startGame();
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keysPressed[e.key] = false;
+        });
+
+        // 폭발 이펙트 생성 함수
+        function createExplosion(x, y, size, color = 'orange') {
+            const explosion = document.createElement('div');
+            explosion.classList.add('explosion');
+            explosion.style.width = `${size}px`;
+            explosion.style.height = `${size}px`;
+            explosion.style.backgroundColor = color;
+            explosion.style.left = `${x - size / 2}px`;
+            explosion.style.top = `${y - size / 2}px`;
+            gameArea.appendChild(explosion);
+
+            explosion.addEventListener('animationend', () => {
+                explosion.remove();
+            });
+        }
+
+        function createBullet() {
+            if (isGameOver || !isGameStarted) return;
+            // 레이드 보스 존재 여부와 상관없이 총알 발사
+            // if (raidBoss) return; // 이 조건 제거
+
+            const bullet = document.createElement('div');
+            bullet.classList.add('bullet');
+            bullet.style.width = `${BULLET_SIZE}px`;
+            bullet.style.height = `${BULLET_SIZE}px`;
+
+            let startX, startY;
+            const livingPlayers = Object.values(players).filter(p => !p.isDead && p.isActive); // 활성화된 살아있는 플레이어만 고려
+            let targetPlayer = null;
+            if (livingPlayers.length > 0) {
+                targetPlayer = livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
+            }
+            
+            let targetX, targetY;
+            if (targetPlayer) {
+                const currentPlayerSize = targetPlayer.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+                targetX = targetPlayer.x + currentPlayerSize / 2;
+                targetY = targetPlayer.y + currentPlayerSize / 2;
+            } else { // 모든 플레이어가 사망하거나 비활성화된 경우, 무작위 지점
+                targetX = Math.random() * GAME_WIDTH;
+                targetY = Math.random() * GAME_HEIGHT;
+            }
+
+            const spawnSide = Math.floor(Math.random() * 4);
+
+            switch (spawnSide) {
+                case 0: startX = Math.random() * (GAME_WIDTH - BULLET_SIZE); startY = -BULLET_SIZE; break;
+                case 1: startX = Math.random() * (GAME_WIDTH - BULLET_SIZE); startY = GAME_HEIGHT; break;
+                case 2: startX = -BULLET_SIZE; startY = Math.random() * (GAME_HEIGHT - BULLET_SIZE); break;
+                case 3: startX = GAME_WIDTH; startY = Math.random() * (GAME_HEIGHT - BULLET_SIZE); break;
+            }
+
+            bullet.style.left = `${startX}px`;
+            bullet.style.top = `${startY}px`;
+
+            const dx = targetX - (startX + BULLET_SIZE / 2);
+            const dy = targetY - (startY + BULLET_SIZE / 2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            bullet.dataset.vx = (dx / distance) * currentBulletSpeed;
+            bullet.dataset.vy = (dy / distance) * currentBulletSpeed;
+
+            gameArea.appendChild(bullet);
+            bullets.push(bullet);
+        }
+
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                let bulletX = parseFloat(bullet.style.left);
+                let bulletY = parseFloat(bullet.style.top);
+                const vx = parseFloat(bullet.dataset.vx);
+                const vy = parseFloat(bullet.dataset.vy);
+
+                bulletX += vx;
+                bulletY += vy;
+
+                bullet.style.left = `${bulletX}px`;
+                bullet.style.top = `${bulletY}px`;
+
+                let hitPlayer = null;
+                let absorbedByShield = false;
+
+                // 보호막 영역 충돌 검사
+                if (shieldArea) {
+                    const shieldCenterX = parseFloat(shieldArea.style.left) + SHIELD_AREA_RADIUS;
+                    const shieldCenterY = parseFloat(shieldArea.style.top) + SHIELD_AREA_RADIUS;
+                    const bulletCenterX = bulletX + BULLET_SIZE / 2;
+                    const bulletCenterY = bulletY + BULLET_SIZE / 2;
+
+                    const dist = Math.sqrt(
+                        Math.pow(bulletCenterX - shieldCenterX, 2) +
+                        Math.pow(bulletCenterY - shieldCenterY, 2)
+                    );
+                    
+                    // 총알 중심과 보호막 중심 사이 거리가 보호막 반지름 + 총알 반지름보다 작으면 충돌
+                    if (dist < SHIELD_AREA_RADIUS + BULLET_SIZE / 2) {
+                        createExplosion(bulletCenterX, bulletCenterY, BULLET_SIZE * 1.5, '#00ff00');
+                        bullet.remove();
+                        bullets.splice(i, 1);
+                        if (shieldCreatorPlayer && shieldCreatorPlayer.isActive) {
+                            shieldCreatorPlayer.personalScore += SHIELD_BULLET_ABSORB_SCORE;
+                            updateScoreDisplays();
+                        }
+                        absorbedByShield = true;
+                    }
+                }
+
+                if (absorbedByShield) continue; // 보호막에 흡수되었으면 다음 총알로 넘어감
+
+
+                for (const playerKey in players) {
+                    const p = players[playerKey];
+                    const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+                    if (p.isActive && !p.isDead) {
+                        // 플레이어가 보호막 안에 있는지 확인
+                        let inShieldArea = false;
+                        if (shieldArea) {
+                            const shieldCenterX = parseFloat(shieldArea.style.left) + SHIELD_AREA_RADIUS;
+                            const shieldCenterY = parseFloat(shieldArea.style.top) + SHIELD_AREA_RADIUS;
+                            const playerCenterX = p.x + currentPlayerSize / 2;
+                            const playerCenterY = p.y + currentPlayerSize / 2;
+                            const distToShieldCenter = Math.sqrt(
+                                Math.pow(playerCenterX - shieldCenterX, 2) +
+                                Math.pow(playerCenterY - shieldCenterY, 2)
+                            );
+                            if (distToShieldCenter < SHIELD_AREA_RADIUS - currentPlayerSize / 2) { // 플레이어 중심이 보호막 반지름 내에 있으면
+                                inShieldArea = true;
+                            }
+                        }
+
+                        if (checkCollision(p.el, bullet, currentPlayerSize, currentPlayerSize, BULLET_SIZE, BULLET_SIZE)) {
+                            hitPlayer = p;
+                            if (hitPlayer.isInvincible || inShieldArea) { // 무적 또는 보호막 안에 있으면 흡수
+                                const bulletCenterX = bulletX + BULLET_SIZE / 2;
+                                const bulletCenterY = bulletY + BULLET_SIZE / 2;
+                                createExplosion(bulletCenterX, bulletCenterY, BULLET_SIZE * 1.5, '#f00');
+                                
+                                bullet.remove();
+                                bullets.splice(i, 1);
+                                hitPlayer.personalScore += BULLET_ABSORB_PERSONAL_SCORE; // 개인 점수만 상승
+                                updateScoreDisplays(); // 점수 업데이트
+                                break; // 다음 플레이어로 넘어가지 않도록
+                            } else { // 무적도 아니고 보호막에도 없으면 사망
+                                hitPlayer.isDead = true;
+                                hitPlayer.el.classList.add('dead');
+                                console.log(`${hitPlayer.el.id.toUpperCase()} 사망!`);
+
+                                if (!deadPlayers.includes(hitPlayer)) {
+                                    deadPlayers.push(hitPlayer);
+                                }
+
+                                const allActivePlayersDead = Object.values(players).filter(p_ => p_.isActive).every(p_ => p_.isDead);
+                                if (allActivePlayersDead) {
+                                    endGame();
+                                    return;
+                                } else {
+                                    const livingPlayers = Object.values(players).filter(p_ => !p_.isDead && p_.isActive);
+                                    if (livingPlayers.length >= 1 && deadPlayers.length >= 1) {
+                                        startReviveItemTimer();
+                                    }
+                                }
+                                bullet.remove(); // 총알도 사라짐
+                                bullets.splice(i, 1);
+                                break; // 다음 플레이어로 넘어가지 않도록
+                            }
+                        }
+                    }
+                }
+
+                // 총알이 벽에 닿았을 때 총 점수만 증가
+                if (bulletX < -BULLET_SIZE * 2 || bulletX > GAME_WIDTH + BULLET_SIZE * 2 ||
+                    bulletY < -BULLET_SIZE * 2 || bulletY > GAME_HEIGHT + BULLET_SIZE * 2) {
+                    bullet.remove();
+                    bullets.splice(i, 1);
+                    
+                    totalScore++; // 총 점수 증가 (벽에 닿은 총알 수)
+                    updateScoreDisplays();
+
+                    if (totalScore > 0 && totalScore % DIFFICULTY_INCREASE_SCORE_INTERVAL === 0) {
+                        increaseDifficulty();
+                    }
+                }
+            }
+        }
+
+        // 일반 아이템 (무적, 축소) 관련 함수
+        let invincibleItemSpawnTimerId = null;
+        let shrinkItemSpawnTimerId = null;
+        let shieldItemSpawnTimerId = null;
+
+        function spawnInvincibleItem() {
+            if (isGameOver) return; // 게임 오버 시 아이템 생성 안함
+            
+            if (invincibleItem) {
+                invincibleItem.remove();
+                invincibleItem = null;
+            }
+
+            invincibleItem = document.createElement('div');
+            invincibleItem.classList.add('item');
+            invincibleItem.style.width = `${ITEM_SIZE}px`;
+            invincibleItem.style.height = `${ITEM_SIZE}px`;
+            
+            const randomX = Math.random() * (GAME_WIDTH - ITEM_SIZE);
+            const randomY = Math.random() * (GAME_HEIGHT - ITEM_SIZE);
+            invincibleItem.style.left = `${randomX}px`;
+            invincibleItem.style.top = `${randomY}px`;
+
+            gameArea.appendChild(invincibleItem);
+            console.log('무적 아이템 생성!');
+        }
+
+        function spawnShrinkItem() {
+            if (isGameOver) return; // 게임 오버 시 아이템 생성 안함
+
+            if (shrinkItem) {
+                shrinkItem.remove();
+                shrinkItem = null;
+            }
+
+            shrinkItem = document.createElement('div');
+            shrinkItem.classList.add('shrink-item');
+            shrinkItem.style.width = `${ITEM_SIZE}px`;
+            shrinkItem.style.height = `${ITEM_SIZE}px`;
+            
+            const randomX = Math.random() * (GAME_WIDTH - ITEM_SIZE);
+            const randomY = Math.random() * (GAME_HEIGHT - ITEM_SIZE);
+            shrinkItem.style.left = `${randomX}px`;
+            shrinkItem.style.top = `${randomY}px`;
+
+            gameArea.appendChild(shrinkItem);
+            console.log('축소 아이템 생성!');
+        }
+
+        // 아이템 주기적 생성 (10초마다 갱신)
+        function startItemSpawnTimers() {
+            // 무적 아이템
+            // 초기 딜레이 후 첫 생성, 이후 주기적으로 생성
+            setTimeout(() => {
+                spawnInvincibleItem();
+                invincibleItemSpawnTimerId = setInterval(spawnInvincibleItem, ITEM_SPAWN_INTERVAL);
+            }, ITEM_SPAWN_INITIAL_DELAY);
+
+            // 축소 아이템
+            setTimeout(() => {
+                spawnShrinkItem();
+                shrinkItemSpawnTimerId = setInterval(spawnShrinkItem, ITEM_SPAWN_INTERVAL);
+            }, ITEM_SPAWN_INITIAL_DELAY);
+
+            // 보호막 아이템
+            setTimeout(() => {
+                spawnShieldItem();
+                shieldItemSpawnTimerId = setInterval(spawnShieldItem, SHIELD_ITEM_SPAWN_INTERVAL);
+            }, ITEM_SPAWN_INITIAL_DELAY);
+        }
+
+        function stopItemSpawnTimers() {
+            clearInterval(invincibleItemSpawnTimerId);
+            clearInterval(shrinkItemSpawnTimerId);
+            clearInterval(shieldItemSpawnTimerId);
+            invincibleItemSpawnTimerId = null;
+            shrinkItemSpawnTimerId = null;
+            shieldItemSpawnTimerId = null;
+        }
+
+
+        function handleInvincibleItem() {
+            for (const playerKey in players) {
+                const p = players[playerKey];
+                const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+                if (p.isActive && !p.isDead && invincibleItem && checkCollision(p.el, invincibleItem, currentPlayerSize, currentPlayerSize, ITEM_SIZE, ITEM_SIZE)) {
+                    const itemCenterX = parseFloat(invincibleItem.style.left) + ITEM_SIZE / 2;
+                    const itemCenterY = parseFloat(invincibleItem.style.top) + ITEM_SIZE / 2;
+                    createExplosion(itemCenterX, itemCenterY, ITEM_SIZE * 1.5, '#00f0f0');
+
+                    invincibleItem.remove();
+                    invincibleItem = null; // 아이템을 제거하고 null로 설정
+
+                    activateInvincibility(p, INVINCIBILITY_DURATION);
+                    console.log(`${p.el.id.toUpperCase()} 무적 아이템 획득! ${INVINCIBILITY_DURATION/1000}초간 무적!`);
+                    
+                    // 아이템 획득 시 바로 재생성 타이머를 다시 시작
+                    if (invincibleItemSpawnTimerId) { // 기존 타이머가 있으면 클리어
+                        clearInterval(invincibleItemSpawnTimerId);
+                    }
+                    invincibleItemSpawnTimerId = setInterval(spawnInvincibleItem, ITEM_SPAWN_INTERVAL);
+                    break;
+                }
+            }
+        }
+
+        function handleShrinkItem() { // 축소 아이템 처리
+            for (const playerKey in players) {
+                const p = players[playerKey];
+                const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+                if (p.isActive && !p.isDead && shrinkItem && checkCollision(p.el, shrinkItem, currentPlayerSize, currentPlayerSize, ITEM_SIZE, ITEM_SIZE)) {
+                    const itemCenterX = parseFloat(shrinkItem.style.left) + ITEM_SIZE / 2;
+                    const itemCenterY = parseFloat(shrinkItem.style.top) + ITEM_SIZE / 2;
+                    createExplosion(itemCenterX, itemCenterY, ITEM_SIZE * 1.5, '#9933ff');
+
+                    shrinkItem.remove();
+                    shrinkItem = null;
+
+                    activateShrink(p, SHRINK_DURATION);
+                    console.log(`${p.el.id.toUpperCase()} 축소 아이템 획득! ${SHRINK_DURATION/1000}초간 몸 크기 축소!`);
+                    
+                    if (shrinkItemSpawnTimerId) {
+                        clearInterval(shrinkItemSpawnTimerId);
+                    }
+                    shrinkItemSpawnTimerId = setInterval(spawnShrinkItem, ITEM_SPAWN_INTERVAL);
+                    break;
+                }
+            }
+        }
+
+        function activateInvincibility(playerObj, duration) {
+            playerObj.isInvincible = true;
+            playerObj.el.classList.add('invincible');
+
+            if (playerObj.invincibilityTimeout) {
+                clearTimeout(playerObj.invincibilityTimeout);
+            }
+            if (playerObj.invincibilityCountdownInterval) {
+                clearInterval(playerObj.invincibilityCountdownInterval);
+            }
+
+            let countdownMs = duration;
+            playerObj.invincibilityCountdownEl.textContent = (countdownMs / 1000).toFixed(1);
+            playerObj.invincibilityCountdownEl.style.opacity = 1;
+
+            playerObj.invincibilityCountdownInterval = setInterval(() => {
+                countdownMs -= 100;
+                if (countdownMs <= 0) {
+                    clearInterval(playerObj.invincibilityCountdownInterval);
+                    playerObj.invincibilityCountdownEl.textContent = '';
+                    playerObj.invincibilityCountdownEl.style.opacity = 0;
+                    playerObj.isInvincible = false;
+                    playerObj.el.classList.remove('invincible');
+                    console.log(`${playerObj.el.id.toUpperCase()} 무적 상태 해제.`);
+                } else {
+                    playerObj.invincibilityCountdownEl.textContent = (countdownMs / 1000).toFixed(1);
+                }
+            }, 100);
+
+            playerObj.invincibilityTimeout = setTimeout(() => {
+                if(playerObj.isInvincible) {
+                    playerObj.isInvincible = false;
+                    playerObj.el.classList.remove('invincible');
+                    clearInterval(playerObj.invincibilityCountdownInterval);
+                    playerObj.invincibilityCountdownEl.textContent = '';
+                    playerObj.invincibilityCountdownEl.style.opacity = 0;
+                    console.log(`${playerObj.el.id.toUpperCase()} 무적 상태 해제 (타이머 만료).`);
+                }
+            }, duration);
+        }
+
+        function activateShrink(playerObj, duration) {
+            playerObj.isShrunk = true;
+            playerObj.el.classList.add('shrunk');
+            playerObj.el.style.width = `${SHRUNK_PLAYER_SIZE}px`;
+            playerObj.el.style.height = `${SHRUNK_PLAYER_SIZE}px`;
+            
+            // 플레이어 크기 변경 시 위치 재조정 (중심 유지)
+            playerObj.x += (PLAYER_SIZE - SHRUNK_PLAYER_SIZE) / 2;
+            playerObj.y += (PLAYER_SIZE - SHRUNK_PLAYER_SIZE) / 2;
+            playerObj.el.style.left = `${playerObj.x}px`;
+            playerObj.el.style.top = `${playerObj.y}px`;
+
+
+            if (playerObj.shrinkTimeout) {
+                clearTimeout(playerObj.shrinkTimeout);
+            }
+            if (playerObj.shrinkCountdownInterval) {
+                clearInterval(playerObj.shrinkCountdownInterval);
+            }
+
+            let countdownMs = duration;
+            playerObj.shrinkCountdownEl.textContent = (countdownMs / 1000).toFixed(1);
+            playerObj.shrinkCountdownEl.style.opacity = 1;
+
+            playerObj.shrinkCountdownInterval = setInterval(() => {
+                countdownMs -= 100;
+                if (countdownMs <= 0) {
+                    clearInterval(playerObj.shrinkCountdownInterval);
+                    playerObj.shrinkCountdownEl.textContent = '';
+                    playerObj.shrinkCountdownEl.style.opacity = 0;
+                    playerObj.isShrunk = false;
+                    playerObj.el.classList.remove('shrunk');
+                    playerObj.el.style.width = `${PLAYER_SIZE}px`;
+                    playerObj.el.style.height = `${PLAYER_SIZE}px`;
+
+                    // 플레이어 크기 원복 시 위치 재조정 (중심 유지)
+                    playerObj.x -= (PLAYER_SIZE - SHRUNK_PLAYER_SIZE) / 2;
+                    playerObj.y -= (PLAYER_SIZE - SHRUNK_PLAYER_SIZE) / 2;
+                    playerObj.el.style.left = `${playerObj.x}px`;
+                    playerObj.el.style.top = `${playerObj.y}px`;
+
+                    console.log(`${playerObj.el.id.toUpperCase()} 축소 상태 해제.`);
+                } else {
+                    playerObj.shrinkCountdownEl.textContent = (countdownMs / 1000).toFixed(1);
+                }
+            }, 100);
+
+            playerObj.shrinkTimeout = setTimeout(() => {
+                if(playerObj.isShrunk) {
+                    playerObj.isShrunk = false;
+                    playerObj.el.classList.remove('shrunk');
+                    playerObj.el.style.width = `${PLAYER_SIZE}px`;
+                    playerObj.el.style.height = `${PLAYER_SIZE}px`;
+                    
+                    playerObj.x -= (PLAYER_SIZE - SHRUNK_PLAYER_SIZE) / 2;
+                    playerObj.y -= (PLAYER_SIZE - SHRUNK_PLAYER_SIZE) / 2;
+                    playerObj.el.style.left = `${playerObj.x}px`;
+                    playerObj.el.style.top = `${playerObj.y}px`;
+
+                    clearInterval(playerObj.shrinkCountdownInterval);
+                    playerObj.shrinkCountdownEl.textContent = '';
+                    playerObj.shrinkCountdownEl.style.opacity = 0;
+                    console.log(`${playerObj.el.id.toUpperCase()} 축소 상태 해제 (타이머 만료).`);
+                }
+            }, duration);
+        }
+
+        // 보호막 아이템 관련 함수
+        function spawnShieldItem() {
+            if (isGameOver) return; // 게임 오버 시 아이템 생성 안함
+            
+            if (shieldItem) { // 이미 나와있는 아이템이 있으면 제거하고 새로 생성
+                shieldItem.remove();
+                shieldItem = null;
+            }
+
+            shieldItem = document.createElement('div');
+            shieldItem.classList.add('shield-item');
+            shieldItem.style.width = `${SHIELD_ITEM_SIZE}px`;
+            shieldItem.style.height = `${SHIELD_ITEM_SIZE}px`;
+            
+            const randomX = Math.random() * (GAME_WIDTH - SHIELD_ITEM_SIZE);
+            const randomY = Math.random() * (GAME_HEIGHT - SHIELD_ITEM_SIZE);
+            shieldItem.style.left = `${randomX}px`;
+            shieldItem.style.top = `${randomY}px`;
+
+            gameArea.appendChild(shieldItem);
+            console.log('보호막 아이템 생성!');
+        }
+
+        function handleShieldItem() {
+            for (const playerKey in players) {
+                const p = players[playerKey];
+                const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+                if (p.isActive && !p.isDead && shieldItem && checkCollision(p.el, shieldItem, currentPlayerSize, currentPlayerSize, SHIELD_ITEM_SIZE, SHIELD_ITEM_SIZE)) {
+                    const itemCenterX = parseFloat(shieldItem.style.left) + SHIELD_ITEM_SIZE / 2;
+                    const itemCenterY = parseFloat(shieldItem.style.top) + SHIELD_ITEM_SIZE / 2;
+                    createExplosion(itemCenterX, itemCenterY, SHIELD_ITEM_SIZE * 1.5, '#00ee00');
+
+                    // 보호 구역 생성 위치 저장
+                    shieldAreaPos.x = parseFloat(shieldItem.style.left) + SHIELD_ITEM_SIZE / 2 - SHIELD_AREA_RADIUS;
+                    shieldAreaPos.y = parseFloat(shieldItem.style.top) + SHIELD_ITEM_SIZE / 2 - SHIELD_AREA_RADIUS;
+
+                    shieldItem.remove();
+                    shieldItem = null;
+                    
+                    activateShieldArea(p); // 보호막을 만든 플레이어를 전달
+                    console.log(`${p.el.id.toUpperCase()} 보호막 아이템 획득!`);
+                    
+                    if (shieldItemSpawnTimerId) { // 아이템 획득 시 바로 재생성 타이머를 다시 시작
+                        clearInterval(shieldItemSpawnTimerId);
+                    }
+                    shieldItemSpawnTimerId = setInterval(spawnShieldItem, SHIELD_ITEM_SPAWN_INTERVAL);
+                    break;
+                }
+            }
+        }
+
+        function activateShieldArea(creatorPlayer) {
+            if (shieldArea) {
+                shieldArea.remove();
+                shieldArea = null;
+                clearInterval(shieldCountdownInterval); // 기존 카운트다운 타이머 중지
+            }
+
+            shieldCreatorPlayer = creatorPlayer;
+
+            shieldArea = document.createElement('div');
+            shieldArea.classList.add('shield-area');
+            shieldArea.style.width = `${SHIELD_AREA_RADIUS * 2}px`;
+            shieldArea.style.height = `${SHIELD_AREA_RADIUS * 2}px`;
+            
+            // 보호막은 아이템 획득 지점에 고정
+            shieldArea.style.left = `${shieldAreaPos.x}px`;
+            shieldArea.style.top = `${shieldAreaPos.y}px`;
+            
+            gameArea.appendChild(shieldArea);
+            console.log('보호 구역 생성!');
+
+            let countdownMs = SHIELD_AREA_DURATION;
+            shieldArea.textContent = (countdownMs / 1000).toFixed(1);
+
+            shieldCountdownInterval = setInterval(() => {
+                countdownMs -= 100;
+                if (countdownMs <= 0) {
+                    clearInterval(shieldCountdownInterval);
+                    if (shieldArea) {
+                        shieldArea.remove();
+                        shieldArea = null;
+                        shieldCreatorPlayer = null;
+                        console.log('보호 구역이 사라졌습니다.');
+                    }
+                } else {
+                    shieldArea.textContent = (countdownMs / 1000).toFixed(1);
+                }
+            }, 100);
+        }
+
+        // 부활 아이템 관련 함수
+        function startReviveItemTimer() {
+            if (reviveItemTimeout) clearTimeout(reviveItemTimeout);
+            if (reviveItem) {
+                reviveItem.remove();
+                reviveItem = null;
+            }
+
+            // deadPlayers.length > 0 인 경우에만 타이머 시작
+            const livingActivePlayersCount = Object.values(players).filter(p => !p.isDead && p.isActive).length;
+            if (livingActivePlayersCount >= 1 && deadPlayers.length >= 1) { // 살아있는 활성화 플레이어가 있고, 죽은 플레이어가 있을 때만 부활 아이템 고려
+                reviveItemTimeout = setTimeout(() => {
+                    createReviveItem();
+                }, REVIVE_ITEM_DELAY);
+                console.log('부활 아이템 생성 타이머 시작 (15초 후)');
+            }
+        }
+
+        function createReviveItem() {
+            // 레이드 보스 존재 여부와 상관없이 부활 아이템 생성 허용
+            const livingActivePlayersCount = Object.values(players).filter(p => !p.isDead && p.isActive).length;
+            if (livingActivePlayersCount === 0 || deadPlayers.length === 0 || reviveItem || isGameOver) return; // 기존 `superBoss || raidBoss` 조건 제거
+
+            reviveItem = document.createElement('div');
+            reviveItem.classList.add('revive-item');
+            reviveItem.style.width = `${REVIVE_ITEM_SIZE}px`;
+            reviveItem.style.height = `${REVIVE_ITEM_SIZE}px`;
+
+            const randomX = Math.random() * (GAME_WIDTH - REVIVE_ITEM_SIZE);
+            const randomY = Math.random() * (GAME_HEIGHT - REVIVE_ITEM_SIZE);
+            reviveItem.style.left = `${randomX}px`;
+            reviveItem.style.top = `${randomY}px`;
+            
+            gameArea.appendChild(reviveItem);
+            console.log('부활 아이템 생성!');
+        }
+
+        function handleReviveItem() {
+            if (!reviveItem || deadPlayers.length === 0) return;
+
+            for (const playerKey in players) {
+                const p = players[playerKey];
+                const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+                if (p.isActive && !p.isDead && checkCollision(p.el, reviveItem, currentPlayerSize, currentPlayerSize, REVIVE_ITEM_SIZE, REVIVE_ITEM_SIZE)) {
+                    const itemCenterX = parseFloat(reviveItem.style.left) + REVIVE_ITEM_SIZE / 2;
+                    const itemCenterY = parseFloat(reviveItem.style.top) + REVIVE_ITEM_SIZE / 2;
+                    createExplosion(itemCenterX, itemCenterY, REVIVE_ITEM_SIZE * 1.5, '#ff9900');
+
+                    reviveItem.remove();
+                    reviveItem = null;
+                    clearTimeout(reviveItemTimeout);
+
+                    deadPlayers.forEach(dp => {
+                        dp.isDead = false;
+                        dp.el.classList.remove('dead');
+                        dp.x = (GAME_WIDTH / 2) - (PLAYER_SIZE / 2) + (Math.random() * 100 - 50); 
+                        dp.y = (GAME_HEIGHT / 2) - (PLAYER_SIZE / 2) + (Math.random() * 100 - 50);
+                        dp.el.style.left = `${dp.x}px`;
+                        dp.el.style.top = `${dp.y}px`;
+                        
+                        activateInvincibility(dp, REVIVE_INVINCIBLE_DURATION);
+                        console.log(`${dp.el.id.toUpperCase()} 부활!`);
+                    });
+                    deadPlayers = [];
+
+                    break;
+                }
+            }
+        }
+
+
+        // 일반 보스 (1번 보스) 몬스터 관련 함수
+        function createBoss() {
+            if (isGameOver || boss || superBoss || raidBoss || !isGameStarted) return;
+
+            boss = document.createElement('div');
+            boss.classList.add('boss');
+            boss.style.width = `${BOSS_SIZE}px`;
+            boss.style.height = `${BOSS_SIZE}px`;
+
+            let startX, startY;
+            const spawnSide = Math.floor(Math.random() * 4);
+
+            switch (spawnSide) {
+                case 0: startX = Math.random() * (GAME_WIDTH - BOSS_SIZE); startY = -BOSS_SIZE; break;
+                case 1: startX = Math.random() * (GAME_WIDTH - BOSS_SIZE); startY = GAME_HEIGHT; break;
+                case 2: startX = -BOSS_SIZE; startY = Math.random() * (GAME_HEIGHT - BOSS_SIZE); break;
+                case 3: startX = GAME_WIDTH; startY = Math.random() * (GAME_HEIGHT - BOSS_SIZE); break;
+            }
+
+            boss.style.left = `${startX}px`;
+            boss.style.top = `${startY}px`;
+            gameArea.appendChild(boss);
+            console.log('일반 보스 몬스터 등장!');
+            bossSpawnOrderCount++; // 보스 등장 순서 증가
+        }
+
+        function updateBoss() {
+            if (!boss || isGameOver || superBoss || raidBoss || !isGameStarted) return;
+
+            let bossX = parseFloat(boss.style.left);
+            let bossY = parseFloat(boss.style.top);
+
+            const livingPlayers = Object.values(players).filter(p => !p.isDead && p.isActive);
+            if (livingPlayers.length === 0) return;
+
+            const targetPlayer = livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
+            const targetX = targetPlayer.x + (targetPlayer.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE) / 2;
+            const targetY = targetPlayer.y + (targetPlayer.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE) / 2;
+
+            const bossCenterX = bossX + BOSS_SIZE / 2;
+            const bossCenterY = bossY + BOSS_SIZE / 2;
+
+            const dx = targetX - bossCenterX;
+            const dy = targetY - bossCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // 보스 이동 로직 (BOSS_SPEED 사용)
+            if (distance > 1) { // 플레이어에게 충분히 가까이 다가가지 않았다면 이동
+                bossX += (dx / distance) * BOSS_SPEED;
+                bossY += (dy / distance) * BOSS_SPEED;
+            }
+            
+            // 경계선 내에 유지
+            bossX = Math.max(0, Math.min(GAME_WIDTH - BOSS_SIZE, bossX));
+            bossY = Math.max(0, Math.min(GAME_HEIGHT - BOSS_SIZE, bossY));
+
+            boss.style.left = `${bossX}px`;
+            boss.style.top = `${bossY}px`;
+
+            for (const playerKey in players) {
+                const p = players[playerKey];
+                const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+
+                let inShieldArea = false;
+                if (shieldArea) {
+                    const shieldCenterX = parseFloat(shieldArea.style.left) + SHIELD_AREA_RADIUS;
+                    const shieldCenterY = parseFloat(shieldArea.style.top) + SHIELD_AREA_RADIUS;
+                    const playerCenterX = p.x + currentPlayerSize / 2;
+                    const playerCenterY = p.y + currentPlayerSize / 2;
+                    const distToShieldCenter = Math.sqrt(
+                        Math.pow(playerCenterX - shieldCenterX, 2) +
+                        Math.pow(playerCenterY - shieldCenterY, 2)
+                    );
+                    if (distToShieldCenter < SHIELD_AREA_RADIUS - currentPlayerSize / 2) {
+                        inShieldArea = true;
+                    }
+                }
+
+                if (p.isActive && !p.isDead && checkCollision(p.el, boss, currentPlayerSize, currentPlayerSize, BOSS_SIZE, BOSS_SIZE)) {
+                    if (p.isInvincible || inShieldArea) {
+                        const bossCenterX = bossX + BOSS_SIZE / 2;
+                        const bossCenterY = bossY + BOSS_SIZE / 2;
+                        createExplosion(bossCenterX, bossCenterY, BOSS_SIZE * 1.5, '#8a2be2');
+                        
+                        boss.remove();
+                        boss = null;
+                        
+                        // 일반 보스 처치 점수는 개인 점수에만 추가 (총 점수에는 영향을 주지 않음)
+                        for (const pk in players) {
+                            if(players[pk].isActive) { // 활성화된 플레이어에게만 점수 부여
+                                players[pk].personalScore += BOSS_DEFEAT_PERSONAL_SCORE;
+                            }
+                        }
+                        updateScoreDisplays(); // 점수 업데이트
+                        console.log('일반 보스 몬스터 처치! 모든 활성화된 플레이어에게 개인 점수 5점!');
+                        
+                        // 다음 보스 생성을 위한 총 점수 기준점 업데이트
+                        currentBossSpawnScoreThreshold = totalScore + BOSS_SPAWN_SCORE_INTERVAL;
+                        break;
+                    } else {
+                        p.isDead = true;
+                        p.el.classList.add('dead');
+                        console.log(`${p.el.id.toUpperCase()} 사망! (일반 보스에게)` );
+
+                        if (!deadPlayers.includes(p)) {
+                            deadPlayers.push(p);
+                        }
+
+                        const allActivePlayersDead = Object.values(players).filter(pl => pl.isActive).every(pl => pl.isDead);
+                        if (allActivePlayersDead) {
+                            endGame();
+                            return;
+                        } else {
+                            const livingPlayersCount = Object.values(players).filter(pl => !pl.isDead && pl.isActive).length;
+                             if (livingPlayersCount >= 1 && deadPlayers.length >= 1) {
+                                startReviveItemTimer();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 슈퍼 보스 (2번 보스) 관련 함수
+        function createSuperBoss() {
+            if (isGameOver || superBoss || raidBoss || !isGameStarted) return;
+
+            if (boss) { // 기존 일반 보스가 있다면 제거
+                boss.remove();
+                boss = null;
+            }
+
+            superBoss = document.createElement('div');
+            superBoss.classList.add('super-boss');
+            superBoss.style.width = `${SUPER_BOSS_SIZE}px`;
+            superBoss.style.height = `${SUPER_BOSS_SIZE}px`;
+            superBoss.style.left = `${(GAME_WIDTH / 2) - (SUPER_BOSS_SIZE / 2)}px`;
+            superBoss.style.top = `${(GAME_HEIGHT / 2) - (SUPER_BOSS_SIZE / 2)}px`;
+            superBoss.textContent = 'SUPER';
+            gameArea.appendChild(superBoss);
+            console.log('슈퍼 보스 몬스터 등장!');
+            bossSpawnOrderCount++; // 보스 등장 순서 증가
+
+            collectedAttackItems = 0; // 라운드별 카운트 초기화
+            superBossCollectRounds = 0; // 슈퍼 보스 처치 라운드 카운트 초기화
+            createAttackItems();
+            startSuperBossLaserAttack();
+        }
+
+        function createAttackItems() {
+            attackItems.forEach(item => item.remove());
+            attackItems = [];
+            const safeDistance = SUPER_BOSS_SIZE * 0.9; // 슈퍼 보스 반지름보다 조금 더 큰 거리
+            const maxAttempts = 100; // 무한 루프 방지를 위한 최대 시도 횟수
+
+            for (let i = 0; i < ATTACK_ITEM_COUNT; i++) {
+                const attackItem = document.createElement('div');
+                attackItem.classList.add('attack-item');
+                attackItem.style.width = `${ITEM_SIZE}px`;
+                attackItem.style.height = `${ITEM_SIZE}px`;
+                
+                let randomX, randomY;
+                let validPos = false;
+                let attempts = 0;
+
+                while(!validPos && attempts < maxAttempts) {
+                    randomX = Math.random() * (GAME_WIDTH - ITEM_SIZE);
+                    randomY = Math.random() * (GAME_HEIGHT - ITEM_SIZE);
+                    
+                    const itemCenterX = randomX + ITEM_SIZE / 2;
+                    const itemCenterY = randomY + ITEM_SIZE / 2;
+                    
+                    // 슈퍼 보스 중앙 좌표
+                    const superBossCenterX = parseFloat(superBoss.style.left) + SUPER_BOSS_SIZE / 2;
+                    const superBossCenterY = parseFloat(superBoss.style.top) + SUPER_BOSS_SIZE / 2;
+
+                    const distToSuperBoss = Math.sqrt(
+                        Math.pow(itemCenterX - superBossCenterX, 2) +
+                        Math.pow(itemCenterY - superBossCenterY, 2)
+                    );
+
+                    // 아이템이 슈퍼 보스와 충분히 떨어져 있는지 확인
+                    if (distToSuperBoss > safeDistance) {
+                        validPos = true;
+                    }
+                    attempts++;
+                }
+
+                if (validPos) { // 유효한 위치를 찾았을 경우에만 추가
+                    attackItem.style.left = `${randomX}px`;
+                    attackItem.style.top = `${randomY}px`;
+                    gameArea.appendChild(attackItem);
+                    attackItems.push(attackItem);
+                } else {
+                    console.warn(`공격 아이템 위치를 찾지 못했습니다. (attempts: ${attempts})`);
+                    // 만약 유효한 위치를 찾지 못하면 해당 아이템은 생성되지 않음
+                }
+            }
+            console.log(`${attackItems.length}개의 공격 아이템 생성!`); // 실제로 생성된 아이템 수
+        }
+
+
+        function handleAttackItems() {
+            if (!superBoss) return;
+
+            for (let i = attackItems.length - 1; i >= 0; i--) {
+                const attackItem = attackItems[i];
+                for (const playerKey in players) {
+                    const p = players[playerKey];
+                    const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+                    if (p.isActive && !p.isDead && checkCollision(p.el, attackItem, currentPlayerSize, currentPlayerSize, ITEM_SIZE, ITEM_SIZE)) {
+                        const itemCenterX = parseFloat(attackItem.style.left) + ITEM_SIZE / 2;
+                        const itemCenterY = parseFloat(attackItem.style.top) + ITEM_SIZE / 2;
+                        createExplosion(itemCenterX, itemCenterY, ITEM_SIZE * 1.5, '#ffcc00');
+
+                        attackItem.remove();
+                        attackItems.splice(i, 1);
+                        collectedAttackItems++;
+                        console.log(`공격 아이템 획득! (${collectedAttackItems}/${ATTACK_ITEM_COUNT})`);
+
+                        if (collectedAttackItems >= ATTACK_ITEM_COUNT) {
+                            superBossCollectRounds++;
+                            console.log(`공격 아이템 라운드 클리어! (${superBossCollectRounds}/${SUPER_BOSS_REQUIRED_COLLECT_ROUNDS} 라운드)`);
+                            collectedAttackItems = 0; // 다음 라운드를 위해 초기화
+                            attackItems.forEach(item => item.remove()); // 남은 아이템 제거
+                            attackItems = []; // 배열 비우기
+
+                            if (superBossCollectRounds >= SUPER_BOSS_REQUIRED_COLLECT_ROUNDS) {
+                                defeatSuperBoss();
+                            } else {
+                                // 다음 라운드를 위해 아이템 다시 생성
+                                setTimeout(createAttackItems, 1000); // 잠시 후 다시 생성
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        function defeatSuperBoss() {
+            if (!superBoss) return;
+
+            const bossCenterX = parseFloat(superBoss.style.left) + SUPER_BOSS_SIZE / 2;
+            const bossCenterY = parseFloat(superBoss.style.top) + SUPER_BOSS_SIZE / 2;
+            createExplosion(bossCenterX, bossCenterY, SUPER_BOSS_SIZE * 1.5, '#ff0000');
+
+            superBoss.remove();
+            superBoss = null;
+            
+            // 슈퍼 보스 처치 점수는 개인 점수에만 추가 (총 점수에는 영향을 주지 않음)
+            for (const playerKey in players) {
+                if(players[playerKey].isActive) { // 활성화된 플레이어에게만 점수 부여
+                    players[playerKey].personalScore += SUPER_BOSS_DEFEAT_PERSONAL_SCORE;
+                }
+            }
+            updateScoreDisplays(); // 점수 업데이트
+            console.log('슈퍼 보스 몬스터 처치! 모든 활성화된 플레이어에게 개인 점수 30점!');
+
+            clearInterval(superBossLaserTimer);
+            if (laserPreviewEl) { laserPreviewEl.remove(); laserPreviewEl = null; }
+            if (laserEl) { laserEl.remove(); laserEl = null; }
+
+            attackItems.forEach(item => item.remove());
+            attackItems = [];
+
+            // 슈퍼 보스 처치 후 다음 일반 보스 출현을 위한 기준점 업데이트
+            currentBossSpawnScoreThreshold = totalScore + BOSS_SPAWN_SCORE_INTERVAL;
+            // bossSpawnOrderCount는 그대로 유지되어 다음 보스 순서 계산에 사용됨
+        }
+
+        // 슈퍼 보스 레이저 공격
+        function startSuperBossLaserAttack() {
+            if (superBossLaserTimer) clearInterval(superBossLaserTimer);
+
+            superBossLaserTimer = setInterval(() => {
+                if (!superBoss || isGameOver || !isGameStarted) {
+                    clearInterval(superBossLaserTimer);
+                    return;
+                }
+                
+                const livingPlayers = Object.values(players).filter(p => !p.isDead && p.isActive);
+                if (livingPlayers.length === 0) {
+                    if (laserPreviewEl) { laserPreviewEl.remove(); laserPreviewEl = null; }
+                    if (laserEl) { laserEl.remove(); laserEl = null; }
+                    return;
+                }
+                const targetPlayer = livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
+                const currentPlayerSize = targetPlayer.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+                laserTargetPos = { x: targetPlayer.x + currentPlayerSize / 2, y: targetPlayer.y + currentPlayerSize / 2 };
+
+                if (laserPreviewEl) laserPreviewEl.remove();
+                laserPreviewEl = document.createElement('div');
+                laserPreviewEl.classList.add('laser-preview');
+                
+                const bossCenterX = parseFloat(superBoss.style.left) + SUPER_BOSS_SIZE / 2;
+                const bossCenterY = parseFloat(superBoss.style.top) + SUPER_BOSS_SIZE / 2;
+
+                const angle = Math.atan2(laserTargetPos.y - bossCenterY, laserTargetPos.x - bossCenterX);
+                // 레이저가 게임 영역 밖으로 충분히 뻗어나가도록 길이를 늘림
+                const distance = Math.sqrt(Math.pow(GAME_WIDTH, 2) + Math.pow(GAME_HEIGHT, 2)); // 대각선 길이
+
+                laserPreviewEl.style.width = `${distance}px`;
+                laserPreviewEl.style.height = `${LASER_WIDTH / 2}px`; // 미리보기는 실제 레이저의 절반 굵기
+                laserPreviewEl.style.transformOrigin = `0 50%`;
+                laserPreviewEl.style.transform = `translate(${bossCenterX}px, ${bossCenterY}px) rotate(${angle}rad)`;
+                laserPreviewEl.style.left = `0px`;
+                laserPreviewEl.style.top = `0px`;
+
+                gameArea.appendChild(laserPreviewEl);
+                console.log('레이저 공격 경로 예측!');
+
+                setTimeout(() => {
+                    if (laserPreviewEl) { laserPreviewEl.remove(); laserPreviewEl = null; }
+
+                    if (!superBoss || isGameOver || !isGameStarted) return;
+
+                    if (laserEl) laserEl.remove();
+                    laserEl = document.createElement('div');
+                    laserEl.classList.add('laser');
+
+                    laserEl.style.width = `${distance}px`; // 실제 레이저도 대각선 길이로 설정
+                    laserEl.style.height = `${LASER_WIDTH}px`; // 실제 레이저 굵기 적용
+                    laserEl.style.transformOrigin = `0 50%`;
+                    laserEl.style.transform = `translate(${bossCenterX}px, ${bossCenterY}px) rotate(${angle}rad)`;
+                    laserEl.style.left = `0px`;
+                    laserEl.style.top = `0px`;
+
+                    gameArea.appendChild(laserEl);
+                    console.log('레이저 발사!');
+
+                    for (const playerKey in players) {
+                        const p = players[playerKey];
+                        const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+
+                        let inShieldArea = false;
+                        if (shieldArea) {
+                            const shieldCenterX = parseFloat(shieldArea.style.left) + SHIELD_AREA_RADIUS;
+                            const shieldCenterY = parseFloat(shieldArea.style.top) + SHIELD_AREA_RADIUS;
+                            const playerCenterX = p.x + currentPlayerSize / 2;
+                            const playerCenterY = p.y + currentPlayerSize / 2;
+                            const distToShieldCenter = Math.sqrt(
+                                Math.pow(playerCenterX - shieldCenterX, 2) +
+                                Math.pow(playerCenterY - shieldCenterY, 2)
+                            );
+                            if (distToShieldCenter < SHIELD_AREA_RADIUS - currentPlayerSize / 2) {
+                                inShieldArea = true;
+                            }
+                        }
+
+                        if (p.isActive && !p.isDead && checkLaserCollision(p.el, laserEl, currentPlayerSize, currentPlayerSize)) {
+                            if (p.isInvincible || inShieldArea) { // 무적 또는 보호막 안에 있으면 흡수 (레이저는 흡수되지 않고 통과)
+                                // 레이저는 흡수되지 않으므로 추가 점수 없음
+                                console.log(`${p.el.id.toUpperCase()} 레이저에 맞았지만 무적/보호막으로 생존!`);
+                            } else {
+                                p.isDead = true;
+                                p.el.classList.add('dead');
+                                console.log(`${p.el.id.toUpperCase()} 사망! (레이저에)` );
+
+                                if (!deadPlayers.includes(p)) {
+                                    deadPlayers.push(p);
+                                }
+
+                                const allActivePlayersDead = Object.values(players).filter(pl => pl.isActive).every(pl => pl.isDead);
+                                if (allActivePlayersDead) {
+                                    endGame();
+                                    return;
+                                } else {
+                                    const currentLivingPlayers = Object.values(players).filter(pl => !pl.isDead && pl.isActive);
+                                    if (currentLivingPlayers.length >= 1 && deadPlayers.length >= 1) {
+                                        startReviveItemTimer();
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    setTimeout(() => {
+                        if (laserEl) { laserEl.remove(); laserEl = null; }
+                    }, 200);
+                }, 1000);
+            }, SUPER_BOSS_LASER_CYCLE);
+        }
+
+        // 레이저 충돌 감지 (플레이어 크기 고려)
+        function checkLaserCollision(playerEl, laserRectEl, playerWidth, playerHeight) {
+            if (!playerEl || !laserRectEl || !superBoss) return false;
+
+            const gameRect = gameArea.getBoundingClientRect();
+            
+            // playerEl의 현재 위치와 크기를 사용하여 중앙점 계산
+            const playerX = parseFloat(playerEl.style.left);
+            const playerY = parseFloat(playerEl.style.top);
+
+            const playerCenterX = playerX + playerWidth / 2;
+            const playerCenterY = playerY + playerHeight / 2;
+
+            const bossCenterX = parseFloat(superBoss.style.left) + SUPER_BOSS_SIZE / 2;
+            const bossCenterY = parseFloat(superBoss.style.top) + SUPER_BOSS_SIZE / 2;
+
+            const targetX = laserTargetPos.x; // 레이저가 향하는 목표 지점
+            const targetY = laserTargetPos.y;
+
+            // 레이저의 시작점과 끝점
+            const laserStartX = bossCenterX;
+            const laserStartY = bossCenterY;
+
+            // 게임 영역 대각선 길이 (레이저가 충분히 길게 뻗어나가도록)
+            const gameAreaDiagonal = Math.sqrt(GAME_WIDTH * GAME_WIDTH + GAME_HEIGHT * GAME_HEIGHT);
+
+            // 레이저의 끝점을 계산 (레이저 발사 방향으로 충분히 멀리)
+            const angle = Math.atan2(targetY - bossCenterY, targetX - bossCenterX);
+            const laserEndX = bossCenterX + gameAreaDiagonal * Math.cos(angle);
+            const laserEndY = bossCenterY + gameAreaDiagonal * Math.sin(angle);
+
+            // 점(플레이어 중심)과 선분(레이저) 사이의 최소 거리 계산
+            // https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+            const L2 = Math.pow(laserEndX - laserStartX, 2) + Math.pow(laserEndY - laserStartY, 2);
+            if (L2 === 0) return false; // 레이저 길이가 0인 경우 (점)
+
+            const t = ((playerCenterX - laserStartX) * (laserEndX - laserStartX) + (playerCenterY - laserStartY) * (laserEndY - laserStartY)) / L2;
+            
+            let closestX, closestY;
+            if (t < 0) {
+                closestX = laserStartX;
+                closestY = laserStartY;
+            } else if (t > 1) {
+                closestX = laserEndX;
+                closestY = laserEndY;
+            } else {
+                closestX = laserStartX + t * (laserEndX - laserStartX);
+                closestY = laserStartY + t * (laserEndY - laserStartY);
+            }
+
+            const distance = Math.sqrt(Math.pow(playerCenterX - closestX, 2) + Math.pow(playerCenterY - closestY, 2));
+
+            // 플레이어 반지름 + 레이저 두께의 절반 정도를 충돌 범위로 설정
+            const collisionThreshold = Math.min(playerWidth, playerHeight) / 2 + LASER_WIDTH / 2; // 플레이어의 짧은 쪽 반지름 + 레이저 두께의 절반
+
+            return distance < collisionThreshold;
+        }
+
+        // 일반 충돌 감지 (요소별 크기 직접 전달)
+        function checkCollision(element1, element2, width1, height1, width2, height2) {
+            if (!element1 || !element2) return false;
+
+            const e1Left = parseFloat(element1.style.left);
+            const e1Top = parseFloat(element1.style.top);
+            const e1Right = e1Left + width1;
+            const e1Bottom = e1Top + height1;
+
+            const e2Left = parseFloat(element2.style.left);
+            const e2Top = parseFloat(element2.style.top);
+            const e2Right = e2Left + width2;
+            const e2Bottom = e2Top + height2;
+
+            return !(
+                e1Right < e2Left ||
+                e1Left > e2Right ||
+                e1Bottom < e2Top ||
+                e1Top > e2Bottom
+            );
+        }
+
+        function increaseDifficulty() {
+            if (isGameOver || !isGameStarted) return;
+
+            currentBulletSpeed = Math.min(MAX_BULLET_SPEED, currentBulletSpeed + SPEED_INCREASE_AMOUNT);
+            currentSpawnInterval = Math.max(MIN_BULLET_SPAWN_INTERVAL, currentSpawnInterval - SPAWN_INTERVAL_DECREASE_AMOUNT);
+
+            clearInterval(bulletSpawnIntervalId);
+            bulletSpawnIntervalId = setInterval(createBullet, currentSpawnInterval);
+            console.log(`난이도 상승! 속도: ${currentBulletSpeed.toFixed(1)}, 생성 간격: ${currentSpawnInterval}ms`);
+        }
+
+        // 플레이어 움직임 처리 함수
+        function updatePlayerPosition(player) {
+            if (player.isDead || !player.isActive) return;
+
+            const currentPlayerSize = player.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+
+            let newX = player.x;
+            let newY = player.y;
+
+            if (keysPressed[player.keys.up]) {
+                newY -= PLAYER_SPEED;
+            }
+            if (keysPressed[player.keys.down]) {
+                newY += PLAYER_SPEED;
+            }
+            if (keysPressed[player.keys.left]) {
+                newX -= PLAYER_SPEED;
+            }
+            if (keysPressed[player.keys.right]) {
+                newX += PLAYER_SPEED;
+            }
+
+            // 경계선 충돌 처리
+            newX = Math.max(0, Math.min(GAME_WIDTH - currentPlayerSize, newX));
+            newY = Math.max(0, Math.min(GAME_HEIGHT - currentPlayerSize, newY));
+
+            player.x = newX;
+            player.y = newY;
+            player.el.style.left = `${player.x}px`;
+            player.el.style.top = `${player.y}px`;
+        }
+
+        // 레이드 보스 (3번 보스) 관련 함수
+        function createRaidBoss() {
+            if (isGameOver || raidBoss || superBoss || boss || !isGameStarted) return;
+            
+            // 기존 보스가 있다면 제거 (일반 보스나 슈퍼 보스를 제거)
+            if (boss) {
+                boss.remove();
+                boss = null;
+            }
+            if (superBoss) {
+                superBoss.remove();
+                superBoss = null;
+                clearInterval(superBossLaserTimer); // 레이저 공격 중지
+                if (laserPreviewEl) { laserPreviewEl.remove(); laserPreviewEl = null; }
+                if (laserEl) { laserEl.remove(); laserEl = null; }
+                attackItems.forEach(item => item.remove()); // 공격 아이템 제거
+                attackItems = [];
+            }
+            // 총알 및 아이템은 계속 생성되므로 여기서 제거하지 않습니다.
+
+            raidBoss = document.createElement('div');
+            raidBoss.classList.add('raid-boss');
+            raidBoss.style.width = `${RAID_BOSS_SIZE}px`;
+            raidBoss.style.height = `${RAID_BOSS_SIZE}px`;
+            raidBoss.style.left = `${(GAME_WIDTH / 2) - (RAID_BOSS_SIZE / 2)}px`;
+            raidBoss.style.top = `${(GAME_HEIGHT / 2) - (RAID_BOSS_SIZE / 2)}px`;
+            raidBoss.textContent = 'RAID';
+            gameArea.appendChild(raidBoss);
+            console.log('레이드 보스 몬스터 등장!');
+            bossSpawnOrderCount++; // 보스 등장 순서 증가
+
+            // 레이드 보스 등장 시 죽은 플레이어가 있다면 부활 아이템 타이머 재시작
+            if (deadPlayers.length > 0) {
+                startReviveItemTimer();
+            }
+
+            startRaidBossAttackCycle();
+            createSafeZone(); // 안전 구역 생성
+        }
+
+        function startRaidBossAttackCycle() {
+            if (raidBossAttackInterval) clearInterval(raidBossAttackInterval);
+            if (raidBossAttackTimeout) clearTimeout(raidBossAttackTimeout);
+
+            raidBossAttackInterval = setInterval(() => {
+                if (!raidBoss || isGameOver || !isGameStarted) {
+                    clearInterval(raidBossAttackInterval);
+                    return;
+                }
+                performRaidBossAttack();
+            }, RAID_ATTACK_PREVIEW_DURATION + 500); // 공격 간격 (경고 시간 + 약간의 딜레이)
+
+            // 첫 공격 시작
+            performRaidBossAttack();
+        }
+
+        function performRaidBossAttack() {
+            if (killZonePreviewEl) {
+                killZonePreviewEl.remove();
+                killZonePreviewEl = null;
+            }
+            if (raidBossAttackTimeout) {
+                clearTimeout(raidBossAttackTimeout);
+            }
+
+            const attackChoices = ['top', 'bottom', 'left', 'right'];
+            raidBossCurrentAttack = attackChoices[Math.floor(Math.random() * attackChoices.length)];
+
+            killZonePreviewEl = document.createElement('div');
+            killZonePreviewEl.classList.add('kill-zone-preview');
+
+            const attackWidth = GAME_WIDTH * RAID_ATTACK_AREA_SIZE_FACTOR;
+            const attackHeight = GAME_HEIGHT * RAID_ATTACK_AREA_SIZE_FACTOR;
+
+            switch (raidBossCurrentAttack) {
+                case 'top':
+                    killZonePreviewEl.style.width = `${GAME_WIDTH}px`;
+                    killZonePreviewEl.style.height = `${GAME_HEIGHT / 2}px`;
+                    killZonePreviewEl.style.left = '0px';
+                    killZonePreviewEl.style.top = '0px';
+                    break;
+                case 'bottom':
+                    killZonePreviewEl.style.width = `${GAME_WIDTH}px`;
+                    killZonePreviewEl.style.height = `${GAME_HEIGHT / 2}px`;
+                    killZonePreviewEl.style.left = '0px';
+                    killZonePreviewEl.style.top = `${GAME_HEIGHT / 2}px`;
+                    break;
+                case 'left':
+                    killZonePreviewEl.style.width = `${GAME_WIDTH / 2}px`;
+                    killZonePreviewEl.style.height = `${GAME_HEIGHT}px`;
+                    killZonePreviewEl.style.left = '0px';
+                    killZonePreviewEl.style.top = '0px';
+                    break;
+                case 'right':
+                    killZonePreviewEl.style.width = `${GAME_WIDTH / 2}px`;
+                    killZonePreviewEl.style.height = `${GAME_HEIGHT}px`;
+                    killZonePreviewEl.style.left = `${GAME_WIDTH / 2}px`;
+                    killZonePreviewEl.style.top = '0px';
+                    break;
+            }
+            gameArea.appendChild(killZonePreviewEl);
+            console.log(`레이드 보스 공격 경고: ${raidBossCurrentAttack.toUpperCase()} 구역!`);
+
+            raidBossAttackTimeout = setTimeout(() => {
+                if (!raidBoss || isGameOver) return; // 보스가 이미 처치되었거나 게임 오버면 무시
+
+                if (killZonePreviewEl) {
+                    killZonePreviewEl.remove();
+                    killZonePreviewEl = null;
+                }
+
+                // 공격 범위에 있는 플레이어 사망 처리
+                for (const playerKey in players) {
+                    const p = players[playerKey];
+                    const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+
+                    let isPlayerInKillZone = false;
+                    switch (raidBossCurrentAttack) {
+                        case 'top':
+                            isPlayerInKillZone = p.y < GAME_HEIGHT / 2;
+                            break;
+                        case 'bottom':
+                            isPlayerInKillZone = p.y + currentPlayerSize > GAME_HEIGHT / 2;
+                            break;
+                        case 'left':
+                            isPlayerInKillZone = p.x < GAME_WIDTH / 2;
+                            break;
+                        case 'right':
+                            isPlayerInKillZone = p.x + currentPlayerSize > GAME_WIDTH / 2;
+                            break;
+                    }
+
+                    if (p.isActive && !p.isDead && isPlayerInKillZone) {
+                        let inShieldArea = false;
+                        if (shieldArea) { // 보호막 영역 내에서는 레이드 보스 공격 면역
+                            const shieldCenterX = parseFloat(shieldArea.style.left) + SHIELD_AREA_RADIUS;
+                            const shieldCenterY = parseFloat(shieldArea.style.top) + SHIELD_AREA_RADIUS;
+                            const playerCenterX = p.x + currentPlayerSize / 2;
+                            const playerCenterY = p.y + currentPlayerSize / 2;
+                            const distToShieldCenter = Math.sqrt(
+                                Math.pow(playerCenterX - shieldCenterX, 2) +
+                                Math.pow(playerCenterY - shieldCenterY, 2)
+                            );
+                            if (distToShieldCenter < SHIELD_AREA_RADIUS - currentPlayerSize / 2) {
+                                inShieldArea = true;
+                            }
+                        }
+
+                        if (!p.isInvincible && !inShieldArea) { // 무적 또는 보호막이 없으면 사망
+                            p.isDead = true;
+                            p.el.classList.add('dead');
+                            console.log(`${p.el.id.toUpperCase()} 사망! (레이드 보스 공격에)` );
+
+                            if (!deadPlayers.includes(p)) {
+                                deadPlayers.push(p);
+                            }
+                        }
+                    }
+                }
+
+                const allActivePlayersDead = Object.values(players).filter(p_ => p_.isActive).every(p_ => p_.isDead);
+                if (allActivePlayersDead) {
+                    endGame();
+                    return;
+                } else {
+                    const livingPlayersCount = Object.values(players).filter(pl => !pl.isDead && pl.isActive).length;
+                        if (livingPlayersCount >= 1 && deadPlayers.length >= 1) {
+                        startReviveItemTimer();
+                    }
+                }
+
+            }, RAID_ATTACK_PREVIEW_DURATION);
+        }
+
+        function createSafeZone() {
+            if (safeZone) {
+                safeZone.remove();
+                safeZone = null;
+            }
+            if (safeZoneInterval) {
+                clearInterval(safeZoneInterval);
+                safeZoneInterval = null;
+            }
+            safeZoneTimer = 0; // 타이머 초기화
+
+            safeZone = document.createElement('div');
+            safeZone.classList.add('safe-zone');
+            safeZone.style.width = `${SAFE_ZONE_SIZE}px`;
+            safeZone.style.height = `${SAFE_ZONE_SIZE}px`;
+
+            // 맵 안에서 랜덤 위치
+            const randomX = Math.random() * (GAME_WIDTH - SAFE_ZONE_SIZE);
+            const randomY = Math.random() * (GAME_HEIGHT - SAFE_ZONE_SIZE);
+            safeZone.style.left = `${randomX}px`;
+            safeZone.style.top = `${randomY}px`;
+
+            const timerDisplay = document.createElement('div');
+            timerDisplay.classList.add('safe-zone-timer-text');
+            timerDisplay.textContent = `0.00s`; // 초기 텍스트
+
+            const progressBar = document.createElement('div');
+            progressBar.classList.add('safe-zone-timer');
+            const fillBar = document.createElement('div');
+            fillBar.classList.add('safe-zone-fill');
+            progressBar.appendChild(fillBar);
+
+            safeZone.appendChild(timerDisplay);
+            safeZone.appendChild(progressBar);
+
+            gameArea.appendChild(safeZone);
+            console.log('안전 구역 생성!');
+
+            safeZoneInterval = setInterval(() => {
+                if (!raidBoss || isGameOver) { // 레이드 보스 처치되거나 게임 오버되면 중지
+                    clearInterval(safeZoneInterval);
+                    safeZoneInterval = null;
+                    if (safeZone) { safeZone.remove(); safeZone = null; }
+                    return;
+                }
+
+                const playersInSafeZone = Object.values(players).filter(p => {
+                    if (!p.isActive || p.isDead) return false;
+                    const currentPlayerSize = p.isShrunk ? SHRUNK_PLAYER_SIZE : PLAYER_SIZE;
+                    return checkCollision(p.el, safeZone, currentPlayerSize, currentPlayerSize, SAFE_ZONE_SIZE, SAFE_ZONE_SIZE);
+                });
+
+                if (playersInSafeZone.length > 0) {
+                    safeZoneTimer += 100; // 0.1초씩 증가
+                    const progress = (safeZoneTimer / SAFE_ZONE_DURATION_TO_DEFEAT) * 100;
+                    fillBar.style.width = `${progress}%`;
+                    timerDisplay.textContent = `${(safeZoneTimer / 1000).toFixed(2)}s`;
+
+                    if (safeZoneTimer >= SAFE_ZONE_DURATION_TO_DEFEAT) {
+                        defeatRaidBoss();
+                    }
+                } else {
+                    // 플레이어가 안전 구역을 벗어나면 타이머 초기화
+                    if (safeZoneTimer > 0) {
+                        safeZoneTimer = 0;
+                        fillBar.style.width = '0%';
+                        timerDisplay.textContent = `0.00s`;
+                        console.log('플레이어가 안전 구역을 벗어나 타이머 초기화됨.');
+                    }
+                }
+            }, 100); // 0.1초마다 업데이트
+        }
+
+        function defeatRaidBoss() {
+            if (!raidBoss) return;
+
+            const bossCenterX = parseFloat(raidBoss.style.left) + RAID_BOSS_SIZE / 2;
+            const bossCenterY = parseFloat(raidBoss.style.top) + RAID_BOSS_SIZE / 2;
+            createExplosion(bossCenterX, bossCenterY, RAID_BOSS_SIZE * 2, '#f0f'); // 마젠타 폭발
+
+            raidBoss.remove();
+            raidBoss = null;
+            clearInterval(raidBossAttackInterval); // 공격 중지
+            clearTimeout(raidBossAttackTimeout); // 대기 중인 공격 타이머 중지
+            if (killZonePreviewEl) { killZonePreviewEl.remove(); killZonePreviewEl = null; }
+
+            clearInterval(safeZoneInterval);
+            if (safeZone) { safeZone.remove(); safeZone = null; }
+            safeZoneTimer = 0; // 안전 구역 타이머 초기화
+
+            // 레이드 보스 처치 점수는 개인 점수에만 추가
+            for (const playerKey in players) {
+                if(players[playerKey].isActive) {
+                    players[playerKey].personalScore += RAID_BOSS_DEFEAT_PERSONAL_SCORE;
+                }
+            }
+            updateScoreDisplays();
+            console.log('레이드 보스 처치! 모든 활성화된 플레이어에게 개인 점수 50점!');
+            
+            // 레이드 보스 처치 후 다음 일반 보스 출현을 위한 기준점 업데이트
+            currentBossSpawnScoreThreshold = totalScore + BOSS_SPAWN_SCORE_INTERVAL;
+            // bossSpawnOrderCount는 그대로 유지되어 다음 보스 순서 계산에 사용됨
+        }
+
+
+        function gameLoop() {
+            if (isGameOver || !isGameStarted) return;
+
+            for (const playerKey in players) {
+                updatePlayerPosition(players[playerKey]);
+            }
+
+            updateBullets();
+            handleInvincibleItem();
+            handleShrinkItem();
+            handleShieldItem();
+            handleReviveItem();
+            updateBoss();
+            handleAttackItems();
+            // 레이드 보스 (3번 보스) 패턴은 별도의 setInterval로 관리되므로 여기서 직접 업데이트하지 않습니다.
+
+            const livingActivePlayersCount = Object.values(players).filter(p => !p.isDead && p.isActive).length;
+            
+            // 보스 등장 로직
+            if (livingActivePlayersCount > 0) { // 살아있는 플레이어가 있을 때만 보스 등장 고려
+
+                if (!boss && !superBoss && !raidBoss) { // 현재 아무 보스도 없을 때만 새로운 보스 등장 판단
+                    // 다음 보스가 슈퍼 보스 (2번 보스)인가? (일반 보스 등장 순서가 3의 배수)
+                    if ((bossSpawnOrderCount + 1) % SUPER_BOSS_SPAWN_ORDER_MULTIPLE === 0 && (bossSpawnOrderCount + 1) % RAID_BOSS_SPAWN_ORDER_MULTIPLE !== 0) {
+                        console.log(`Boss order: ${bossSpawnOrderCount + 1}. Spawning Super Boss.`);
+                        createSuperBoss();
+                    } 
+                    // 다음 보스가 레이드 보스 (3번 보스)인가? (일반 보스 등장 순서가 5의 배수)
+                    else if ((bossSpawnOrderCount + 1) % RAID_BOSS_SPAWN_ORDER_MULTIPLE === 0) {
+                         console.log(`Boss order: ${bossSpawnOrderCount + 1}. Spawning Raid Boss.`);
+                         createRaidBoss();
+                    }
+                    // 다음 보스가 일반 보스 (1번 보스)인가? (총 점수 조건 만족)
+                    else if (totalScore >= currentBossSpawnScoreThreshold) {
+                        console.log(`Total score: ${totalScore}. Spawning Normal Boss.`);
+                        createBoss();
+                    }
+                }
+            }
+        }
+
+        function initializePlayers(numActivePlayers) {
+            const playerKeys = Object.keys(players);
+            for(let i = 0; i < playerKeys.length; i++) {
+                const player = players[playerKeys[i]];
+                player.isActive = (i < numActivePlayers);
+                if (player.isActive) {
+                    player.el.style.display = 'block'; // 활성 플레이어 보이기
+                } else {
+                    player.el.style.display = 'none'; // 비활성 플레이어 숨기기
+                }
+            }
+
+            // 활성 플레이어의 초기 위치 재설정 (중앙 정렬)
+            const activePlayerCount = Object.values(players).filter(p => p.isActive).length;
+            let startXOffset = 0;
+            if (activePlayerCount === 1) {
+                startXOffset = 0; // P2 위치
+            } else if (activePlayerCount === 2) {
+                startXOffset = -50; // P1, P2
+            } else { // 3인
+                startXOffset = -100; // P1, P2, P3
+            }
+
+            let playerIndex = 0;
+            for (const playerKey in players) {
+                const p = players[playerKey];
+                if (p.isActive) {
+                    p.x = (GAME_WIDTH / 2) - (PLAYER_SIZE / 2) + startXOffset + (playerIndex * 100);
+                    p.y = (GAME_HEIGHT / 2) - (PLAYER_SIZE / 2);
+                    p.el.style.left = `${p.x}px`;
+                    p.el.style.top = `${p.y}px`;
+                    playerIndex++;
+                }
+            }
+        }
+
+        function startGame() {
+            if (isGameStarted && !isGameOver) return; // 이미 게임이 시작되었거나 진행 중이면 다시 시작하지 않음
+
+            isGameOver = false;
+            isGameStarted = true;
+            gameTimeMs = 0;
+            timeDisplay.textContent = `시간: ${(gameTimeMs / 1000).toFixed(2)}초`;
+            
+            currentBulletSpeed = 2.5;
+            currentSpawnInterval = 600;
+            totalScore = 0; // 총 점수 초기화
+            currentBossSpawnScoreThreshold = BOSS_SPAWN_SCORE_INTERVAL; // 첫 보스는 20점 도달 시
+            bossSpawnOrderCount = 0; // 보스 등장 순서 카운트 초기화
+
+            const numActivePlayers = parseInt(numPlayersInput.value);
+            initializePlayers(numActivePlayers); // 선택된 플레이어 수에 따라 활성화
+
+            for (const playerKey in players) {
+                const p = players[playerKey];
+                p.isDead = false;
+                p.el.classList.remove('dead');
+                p.isInvincible = false;
+                p.el.classList.remove('invincible');
+                clearTimeout(p.invincibilityTimeout);
+                clearInterval(p.invincibilityCountdownInterval);
+                p.invincibilityCountdownEl.textContent = '';
+                p.invincibilityCountdownEl.style.opacity = 0;
+
+                p.isShrunk = false; // 축소 상태 초기화
+                p.el.classList.remove('shrunk');
+                p.el.style.width = `${PLAYER_SIZE}px`; // 크기 원복
+                p.el.style.height = `${PLAYER_SIZE}px`;
+                clearTimeout(p.shrinkTimeout);
+                clearInterval(p.shrinkCountdownInterval);
+                p.shrinkCountdownEl.textContent = '';
+                p.shrinkCountdownEl.style.opacity = 0;
+
+                p.personalScore = 0; // 개인 점수 초기화
+            }
+            updateScoreDisplays(); // 모든 점수 초기화 및 화면 업데이트
+
+
+            if (boss) {
+                boss.remove();
+                boss = null;
+            }
+            
+            if (superBoss) {
+                superBoss.remove();
+                superBoss = null;
+            }
+            clearInterval(superBossLaserTimer);
+            if (laserPreviewEl) { laserPreviewEl.remove(); laserPreviewEl = null; }
+            if (laserEl) { laserEl.remove(); laserEl = null; }
+            attackItems.forEach(item => item.remove());
+            attackItems = [];
+            collectedAttackItems = 0;
+            superBossCollectRounds = 0; // 슈퍼 보스 처치 라운드 카운트 초기화
+
+            if (raidBoss) { // 레이드 보스 관련 초기화
+                raidBoss.remove();
+                raidBoss = null;
+            }
+            clearInterval(raidBossAttackInterval);
+            clearTimeout(raidBossAttackTimeout);
+            if (killZonePreviewEl) { killZonePreviewEl.remove(); killZonePreviewEl = null; }
+            if (safeZone) { safeZone.remove(); safeZone = null; }
+            clearInterval(safeZoneInterval);
+            safeZoneTimer = 0;
+
+
+            bullets.forEach(bullet => bullet.remove());
+            bullets = [];
+
+            // 모든 아이템 제거 및 타이머 초기화
+            if (invincibleItem) { invincibleItem.remove(); invincibleItem = null; }
+            if (shrinkItem) { shrinkItem.remove(); shrinkItem = null; }
+            if (shieldItem) { shieldItem.remove(); shieldItem = null; }
+            if (shieldArea) { shieldArea.remove(); shieldArea = null; clearInterval(shieldCountdownInterval); }
+            shieldCreatorPlayer = null;
+
+
+            if (reviveItem) {
+                reviveItem.remove();
+                reviveItem = null;
+            }
+            clearTimeout(reviveItemTimeout);
+            deadPlayers = [];
+
+            gameOverScreen.style.display = 'none';
+            startScreen.style.display = 'none'; // 시작 화면 숨기기
+
+            clearInterval(gameInterval);
+            clearInterval(bulletSpawnIntervalId);
+            clearInterval(gameTimeInterval);
+            stopItemSpawnTimers(); // 기존 아이템 타이머 모두 정지
+
+            gameInterval = setInterval(gameLoop, 1000 / 60);
+
+            for (let i = 0; i < INITIAL_BULLET_COUNT; i++) {
+                setTimeout(createBullet, i * 200);
+            }
+            bulletSpawnIntervalId = setInterval(createBullet, currentSpawnInterval);
+
+            // 아이템 주기적 생성 (첫 생성 딜레이 적용)
+            startItemSpawnTimers();
+
+
+            gameTimeInterval = setInterval(() => {
+                gameTimeMs += 10;
+                timeDisplay.textContent = `시간: ${(gameTimeMs / 1000).toFixed(2)}초`;
+            }, 10);
+        }
+
+        function endGame() {
+            isGameOver = true;
+            isGameStarted = false; // 게임 종료 상태로 변경
+            clearInterval(gameInterval);
+            clearInterval(bulletSpawnIntervalId);
+            clearInterval(gameTimeInterval);
+            stopItemSpawnTimers(); // 아이템 타이머 모두 정지
+            clearTimeout(reviveItemTimeout);
+            clearInterval(superBossLaserTimer);
+            clearInterval(raidBossAttackInterval); // 레이드 보스 공격 중지
+            clearTimeout(raidBossAttackTimeout); // 레이드 보스 공격 타이머 중지
+            if (safeZoneInterval) clearInterval(safeZoneInterval); // 안전 구역 타이머 중지
+            
+            for (const playerKey in players) {
+                const p = players[playerKey];
+                clearTimeout(p.invincibilityTimeout);
+                clearInterval(p.invincibilityCountdownInterval);
+                clearTimeout(p.shrinkTimeout);
+                clearInterval(p.shrinkCountdownInterval);
+            }
+            
+            bullets.forEach(bullet => bullet.remove());
+            bullets = [];
+            
+            if (invincibleItem) {
+                invincibleItem.remove();
+                invincibleItem = null;
+            }
+            if (shrinkItem) {
+                shrinkItem.remove();
+                shrinkItem = null;
+            }
+            if (shieldItem) {
+                shieldItem.remove();
+                shieldItem = null;
+            }
+            if (shieldArea) {
+                shieldArea.remove();
+                shieldArea = null;
+                clearInterval(shieldCountdownInterval);
+            }
+            shieldCreatorPlayer = null;
+
+            if (reviveItem) {
+                reviveItem.remove();
+                reviveItem = null;
+            }
+            if (boss) {
+                boss.remove();
+                boss = null;
+            }
+            if (superBoss) {
+                superBoss.remove();
+                superBoss = null;
+            }
+            if (raidBoss) { // 레이드 보스 관련 제거
+                raidBoss.remove();
+                raidBoss = null;
+            }
+            if (killZonePreviewEl) { killZonePreviewEl.remove(); killZonePreviewEl = null; }
+            if (safeZone) { safeZone.remove(); safeZone = null; }
+
+
+            if (laserPreviewEl) { laserPreviewEl.remove(); laserPreviewEl = null; }
+            if (laserEl) { laserEl.remove(); laserEl = null; }
+            attackItems.forEach(item => item.remove());
+            attackItems = [];
+
+            finalTotalScoreDisplay.textContent = totalScore; // 최종 총 점수는 총알 점수만
+            finalScoreP1Display.textContent = players.player1.personalScore;
+            finalScoreP2Display.textContent = players.player2.personalScore;
+            finalScoreP3Display.textContent = players.player3.personalScore;
+            finalTimeDisplay.textContent = `${(gameTimeMs / 1000).toFixed(2)}초`;
+            gameOverScreen.style.display = 'flex';
+        }
+
+        // 시작 화면 관련 이벤트 리스너
+        startButton.addEventListener('click', startGame);
+        document.addEventListener('keydown', (e) => {
+            if (!isGameStarted && (e.key === 'Enter' || e.key === ' ')) {
+                startGame();
+            }
+        });
+
+        // 초기 시작 화면 표시 및 플레이어 숨기기
+        function initGameDisplay() {
+            startScreen.style.display = 'flex';
+            gameOverScreen.style.display = 'none';
+            player1El.style.display = 'none';
+            player2El.style.display = 'none';
+            player3El.style.display = 'none';
+            updateScoreDisplays(); // 점수판 업데이트 (비활성 플레이어 숨김 처리)
+        }
+
+        // 페이지 로드 시 초기화
+        window.onload = initGameDisplay;
+        
+    </script>
+</body>
+</html>
