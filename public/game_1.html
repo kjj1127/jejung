@@ -580,24 +580,24 @@
         const GAME_WIDTH = gameArea.clientWidth;
         const GAME_HEIGHT = gameArea.clientHeight;
 
-        const PLAYER_SIZE = 30; // 기본 플레이어 크기
-        const SHRUNK_PLAYER_SIZE = 15; // 축소된 플레이어 크기
-        const BULLET_SIZE = 15;
-        const ITEM_SIZE = 25;
-        const REVIVE_ITEM_SIZE = 35;
-        const SHIELD_ITEM_SIZE = 30; // 보호막 아이템 크기
-        const SHIELD_AREA_RADIUS = 100; // 보호 구역 반지름
+        const PLAYER_SIZE = 20; // 기본 플레이어 크기
+        const SHRUNK_PLAYER_SIZE = 10; // 축소된 플레이어 크기
+        const BULLET_SIZE = 10;
+        const ITEM_SIZE = 20;
+        const REVIVE_ITEM_SIZE = 30;
+        const SHIELD_ITEM_SIZE = 20; // 보호막 아이템 크기
+        const SHIELD_AREA_RADIUS = 150; // 보호 구역 반지름
         const BOSS_SIZE = 70;
         const SUPER_BOSS_SIZE = 120;
         const RAID_BOSS_SIZE = 100; // 레이드 보스 크기
         const PLAYER_SPEED = 5;
-        const BOSS_SPEED = 1.5;
+        const BOSS_SPEED = 3.5;
 
         // 난이도 조절 변수
         let currentBulletSpeed = 2.5;
         let currentSpawnInterval = 600;
         const INITIAL_BULLET_COUNT = 4;
-        const DIFFICULTY_INCREASE_SCORE_INTERVAL = 15; // 총 점수 15점마다 난이도 상승
+        const DIFFICULTY_INCREASE_SCORE_INTERVAL = 40; // 총 점수 15점마다 난이도 상승
         const SPEED_INCREASE_AMOUNT = 0.4;
         const SPAWN_INTERVAL_DECREASE_AMOUNT = 40;
         const MAX_BULLET_SPEED = 12;
@@ -614,7 +614,7 @@
         let shrinkItem = null; // 축소 아이템
 
         // 보호막 아이템 관련 변수
-        const SHIELD_ITEM_SPAWN_INTERVAL = 30000; // 보호막 아이템 재생성 주기 (30초)
+        const SHIELD_ITEM_SPAWN_INTERVAL = 20000; // 보호막 아이템 재생성 주기 (30초)
         const SHIELD_AREA_DURATION = 10000; // 보호 구역 유지 시간 (10초)
         const SHIELD_BULLET_ABSORB_SCORE = 2; // 보호 구역에서 총알 흡수 시 점수
         let shieldItem = null;
@@ -691,7 +691,7 @@
                 isShrunk: false,
                 shrinkTimeout: null,
                 shrinkCountdownInterval: null, // 축소 카운트다운 인터벌
-                keys: { up: 'w', down: 's', left: 'a', right: 'd' },
+                keys: { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' },
                 invincibilityCountdownEl: player1El.querySelector('.invincibility-countdown'),
                 shrinkCountdownEl: player1El.querySelector('.shrink-countdown'),
                 personalScore: 0, // 개인 점수
@@ -709,7 +709,7 @@
                 isShrunk: false,
                 shrinkTimeout: null,
                 shrinkCountdownInterval: null,
-                keys: { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' },
+                keys: { up: 'w', down: 's', left: 'a', right: 'd' },
                 invincibilityCountdownEl: player2El.querySelector('.invincibility-countdown'),
                 shrinkCountdownEl: player2El.querySelector('.shrink-countdown'),
                 personalScore: 0,
