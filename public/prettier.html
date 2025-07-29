@@ -3,26 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSS 포맷터</title>
+    <title>확장된 CSS 포맷터</title>
     <style>
-        :root {--bg-color: #282c34; --text-color: #abb2bf; --header-color: #ffffff; --textarea-bg: #21252b; --border-color: #4b5263; --button-bg: #61afef; --button-hover-bg: #5296d8; --button-text: #ffffff; --copy-btn-bg: #3c414a; --copy-btn-hover-bg: #4b5263; --copy-success-bg: #228b22;}
-        body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px;}
-        .container {max-width: 1200px; margin: 0 auto;}
-        h1 {color: var(--header-color); text-align: center; margin-bottom: 30px;}
-        .converter-wrapper {display: flex; flex-wrap: wrap; gap: 20px;}
-        .box {flex: 1; min-width: 300px; display: flex; flex-direction: column;}
-        .box-header {display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;}
-        h2 {margin: 0; color: var(--header-color); font-size: 1.2em;}
-        textarea {width: 100%; height: 50vh; background-color: var(--textarea-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; font-family: 'D2Coding', 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; resize: vertical; box-sizing: border-box;}
-        #outputCss {background-color: #2c313a;}
-        #copyBtn {padding: 6px 12px; font-size: 13px; font-weight: 600; background-color: var(--copy-btn-bg); color: var(--button-text); border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;}
-        #copyBtn:hover {background-color: var(--copy-btn-hover-bg);}
+        :root{--bg-color: #282c34; --text-color: #abb2bf; --header-color: #ffffff; --textarea-bg: #21252b; --border-color: #4b5263; --button-bg: #61afef; --button-hover-bg: #5296d8; --button-text: #ffffff; --copy-btn-bg: #3c414a; --copy-btn-hover-bg: #4b5263; --copy-success-bg: #228b22;}
+        body{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px;}
+        .container{max-width: 1200px; margin: 0 auto;}
+        h1{color: var(--header-color); text-align: center; margin-bottom: 20px;}
+        .converter-wrapper{display: flex; flex-wrap: wrap; gap: 20px;}
+        .box{flex: 1; min-width: 300px; display: flex; flex-direction: column;}
+        .box-header{display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;}
+        h2{margin: 0; color: var(--header-color); font-size: 1.2em;}
+        textarea{width: 100%; height: 50vh; background-color: var(--textarea-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; font-family: 'D2Coding', 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; resize: vertical; box-sizing: border-box;}
+        #outputCss{background-color: #2c313a;}
+        #copyBtn{padding: 6px 12px; font-size: 13px; font-weight: 600; background-color: var(--copy-btn-bg); color: var(--button-text); border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;}
+        #copyBtn:hover{background-color: var(--copy-btn-hover-bg);}
+        .options-bar{display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 20px; margin-bottom: 15px; padding-right: 5px;}
+        .options-bar label{display: flex; align-items: center; cursor: pointer; font-size: 14px; color: var(--text-color);}
+        .options-bar input[type="checkbox"]{margin-right: 8px; cursor: pointer;}
+        .options-bar label.disabled{cursor: not-allowed; color: #6a737d;}
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1>개인화 된 CSS 포맷터</h1>
+
+        <div class="options-bar">
+            <label for="keepComments">
+                <input type="checkbox" id="keepComments" checked>
+                주석 유지
+            </label>
+            <label for="commentNewline">
+                <input type="checkbox" id="commentNewline">
+                주석 줄바꿈
+            </label>
+            <label for="spaceInsideBraces">
+                <input type="checkbox" id="spaceInsideBraces">
+                {} 안쪽에 공백 추가
+            </label>
+            <label for="spaceBeforeBrace">
+                <input type="checkbox" id="spaceBeforeBrace">
+                {} 앞에 공백 추가
+            </label>
+        </div>
+
         <div class="converter-wrapper">
             <div class="box">
                 <div class="box-header">
@@ -40,107 +64,243 @@
         </div>
     </div>
 
-    <script>
-        const inputCss = document.getElementById('inputCss');
-        const outputCss = document.getElementById('outputCss');
-        const copyBtn = document.getElementById('copyBtn');
-        const BASE_INDENT = '    '; // 기본 들여쓰기 (스페이스 4칸)
+<script>
+    const inputCss = document.getElementById('inputCss');
+    const outputCss = document.getElementById('outputCss');
+    const copyBtn = document.getElementById('copyBtn');
+    const spaceInsideBracesCheckbox = document.getElementById('spaceInsideBraces');
+    const keepCommentsCheckbox = document.getElementById('keepComments');
+    const commentNewlineCheckbox = document.getElementById('commentNewline');
+    const spaceBeforeBraceCheckbox = document.getElementById('spaceBeforeBrace');
+    const BASE_INDENT = '    ';
 
-        function handleFormatting() {
-            const inputText = inputCss.value;
-            
-            // [수정] <style> 태그와 그 앞의 들여쓰기까지 감지하는 정규표현식
-            if (/(^|\n)([ \t]*)<style[^>]*>[\s\S]*?<\/style>/i.test(inputText)) {
-                const result = inputText.replace(
-                    /(^|\n)([ \t]*)(<style[^>]*>)([\s\S]*?)(<\/style>)/gi,
-                    (match, lineStart, baseIndent, openTag, cssContent, closeTag) => {
-                        
-                        const formattedCss = processCssBlock(cssContent, BASE_INDENT);
-                        
-                        // [수정] 감지된 기본 들여쓰기(baseIndent)에 추가 들여쓰기(BASE_INDENT)를 더함
-                        const indentedCss = formattedCss
-                            .split('\n')
-                            .map(line => baseIndent + BASE_INDENT + line)
-                            .join('\n');
-
-                        return `${lineStart}${baseIndent}${openTag}\n${indentedCss}\n${baseIndent}${closeTag}`;
-                    }
-                );
-                outputCss.value = result;
-            } else {
-                outputCss.value = processCssBlock(inputText, '');
-            }
+    function handleFormatting() {
+        const inputText = inputCss.value;
+        const options = {
+            addSpaceInsideBraces: spaceInsideBracesCheckbox.checked,
+            keepComments: keepCommentsCheckbox.checked,
+            commentNewline: commentNewlineCheckbox.checked,
+            spaceBeforeBrace: spaceBeforeBraceCheckbox.checked
+        };
+        
+        if (/(^|\n)([ \t]*)<style[^>]*>[\s\S]*?<\/style>/i.test(inputText)) {
+            const result = inputText.replace(
+                /(^|\n)([ \t]*)(<style[^>]*>)([\s\S]*?)(<\/style>)/gi,
+                (match, lineStart, baseIndent, openTag, cssContent, closeTag) => {
+                    const formattedCss = formatCss(cssContent, options);
+                    const indentedCss = formattedCss.split('\n').map(line => line.trim() ? (baseIndent + BASE_INDENT + line) : '').join('\n');
+                    return `${lineStart}${baseIndent}${openTag}\n${indentedCss}\n${baseIndent}${closeTag}`;
+                }
+            );
+            outputCss.value = result;
+        } else {
+            outputCss.value = formatCss(inputText, options);
         }
+    }
+    
+    function formatCss(cssString, options, initialIndentLevel = 0) {
+        let output = [];
+        let currentIndentLevel = initialIndentLevel;
+        let charIndex = 0;
 
-        function processCssBlock(cssString, baseIndent) {
-            try {
-                const cleanedCss = cssString.replace(/\/\*[\s\S]*?\*\//g, '').trim();
+        const COMMENT_REGEX = /\/\*[\s\S]*?\*\//g;
 
-                const blocks = [];
-                let braceLevel = 0;
-                let lastCut = 0;
-                for (let i = 0; i < cleanedCss.length; i++) {
-                    if (cleanedCss[i] === '{') {
-                        braceLevel++;
-                    } else if (cleanedCss[i] === '}') {
-                        braceLevel--;
-                        if (braceLevel === 0 && lastCut <= i) {
-                            blocks.push(cleanedCss.substring(lastCut, i + 1).trim());
-                            lastCut = i + 1;
+        function getNextToken(css, startIdx) {
+            const remaining = css.substring(startIdx);
+
+            const commentMatch = remaining.match(COMMENT_REGEX);
+            if (commentMatch && commentMatch.index === 0) {
+                return { type: 'comment', value: commentMatch[0], length: commentMatch[0].length };
+            }
+
+            let braceCount = 0;
+            let ruleEndIndex = -1;
+            let inString = false;
+            
+            for (let i = 0; i < remaining.length; i++) {
+                const char = remaining[i];
+                if (char === "'" || char === '"') {
+                    inString = !inString;
+                } else if (!inString) {
+                    if (char === '{') {
+                        braceCount++;
+                    } else if (char === '}') {
+                        braceCount--;
+                        if (braceCount === 0) {
+                            ruleEndIndex = i;
+                            break;
                         }
                     }
                 }
-                if (braceLevel !== 0) return cssString;
-
-                const formattedBlocks = blocks.map(block => {
-                    if (!block) return '';
-                    const openBraceIndex = block.indexOf('{');
-                    if (openBraceIndex === -1) return block;
-
-                    const selector = block.substring(0, openBraceIndex).trim().replace(/\s+/g, ' ');
-                    const content = block.substring(openBraceIndex + 1, block.length - 1).trim();
-
-                    if (selector.startsWith('@')) {
-                        const formattedContent = processCssBlock(content, baseIndent + BASE_INDENT);
-                        const indentedContent = formattedContent.split('\n').filter(l => l).map(line => BASE_INDENT + line).join('\n');
-                        return `${selector} {\n${indentedContent}\n}`;
-                    } else {
-                        const formattedProperties = content
-                            .replace(/\s*:\s*/g, ': ')
-                            .replace(/\s*;\s*/g, '; ')
-                            .trim();
-                        return `${selector} {${formattedProperties}}`;
-                    }
-                });
-
-                return formattedBlocks.join('\n');
-            } catch (e) {
-                return cssString;
             }
+
+            if (ruleEndIndex !== -1) {
+                const ruleValue = remaining.substring(0, ruleEndIndex + 1);
+                return { type: 'rule', value: ruleValue, length: ruleValue.length };
+            }
+            
+            if (remaining.trim().length > 0) {
+                // 불완전한 CSS 또는 공백만 있는 경우 처리
+                const nextRuleOrComment = remaining.match(/(\/\*[\s\S]*?\*\/)|([^}{/]*?{[^{}]*?})/g);
+                if (nextRuleOrComment && nextRuleOrComment.index === 0) {
+                     // 이미 처리될 토큰이므로, 현재 남은 텍스트는 빈 공백이 아닐 경우 불완전한 텍스트로 간주
+                    return { type: 'text', value: nextRuleOrComment[0], length: nextRuleOrComment[0].length };
+                } else if (remaining.trim().length > 0) {
+                     return { type: 'text', value: remaining.trim(), length: remaining.length };
+                }
+            }
+            return null;
         }
 
-        function copyToClipboard() {
-            const textToCopy = outputCss.value;
-            if (!textToCopy) return;
+        let prevTokenWasRule = false; // 이전 토큰이 규칙이었는지 (줄바꿈/공백 판단용)
 
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                const originalText = copyBtn.textContent;
-                copyBtn.textContent = '복사 완료!';
-                copyBtn.style.backgroundColor = 'var(--copy-success-bg)';
+        while (charIndex < cssString.length) {
+            // 토큰 앞의 공백(줄바꿈 포함)을 모두 건너뛰기
+            const leadingWhitespaceMatch = cssString.substring(charIndex).match(/^\s+/);
+            if (leadingWhitespaceMatch) {
+                charIndex += leadingWhitespaceMatch[0].length;
+            }
+
+            const token = getNextToken(cssString, charIndex);
+
+            if (!token) break;
+
+            if (token.type === 'comment') {
+                if (options.keepComments) {
+                    // 주석 유지가 켜진 경우에만
+                    if (prevTokenWasRule) {
+                        // 이전 토큰이 규칙이었으면 '주석 줄바꿈' 옵션에 따라 처리
+                        output.push(options.commentNewline ? '\n' : ' ');
+                    } else if (output.length > 0 && !output[output.length - 1].endsWith('\n')) {
+                        // 이전 토큰이 규칙이 아니었고, 마지막 줄이 줄바꿈으로 끝나지 않았으면 새 줄
+                        output.push('\n');
+                    } else if (output.length > 0 && output[output.length - 1].endsWith('\n') && !output[output.length - 1].trim()) {
+                        // 이전 줄이 비어있는 줄이면 그대로 유지 (원래 줄바꿈 유지)
+                        output.push(''); 
+                    } else {
+                        output.push(''); // 첫 주석이거나, 주석 앞 줄바꿈이 이미 처리된 경우
+                    }
+                    output.push(BASE_INDENT.repeat(currentIndentLevel) + token.value.trim());
+                }
+                prevTokenWasRule = false;
+            } else if (token.type === 'rule') {
+                if (output.length > 0 && !output[output.length - 1].endsWith('\n') && !prevTokenWasRule) {
+                    // 이전 토큰이 주석이었고 주석 줄바꿈 옵션이 켜져 있지 않으면 공백
+                    // 그렇지 않으면 (이전 토큰이 주석이 아니거나 주석 줄바꿈 옵션 켜짐) 줄바꿈
+                    output.push('\n'); 
+                } else if (output.length > 0 && prevTokenWasRule) {
+                    output.push('\n'); // 규칙 뒤에 규칙이 오면 줄바꿈
+                } else if (output.length > 0) {
+                     output.push('\n'); // 첫 규칙이 아니면 줄바꿈
+                }
                 
-                setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                    copyBtn.style.backgroundColor = 'var(--copy-btn-bg)';
-                }, 2000);
-            }).catch(err => {
-                console.error('클립보드 복사 실패:', err);
-            });
+                let ruleContent = token.value;
+                let openBraceIndex = ruleContent.indexOf('{');
+                let closeBraceIndex = ruleContent.lastIndexOf('}');
+
+                let selector = ruleContent.substring(0, openBraceIndex).trim();
+                let propertiesString = ruleContent.substring(openBraceIndex + 1, closeBraceIndex).trim();
+
+                let braceSpace = options.spaceBeforeBrace ? ' ' : '';
+                let openBraceInside = options.addSpaceInsideBraces ? ' ' : '';
+                let closeBraceInside = options.addSpaceInsideBraces ? ' ' : '';
+
+                // `@` 규칙 처리
+                if (selector.startsWith('@')) {
+                    output.push(BASE_INDENT.repeat(currentIndentLevel) + selector + braceSpace + '{');
+                    currentIndentLevel++;
+                    // @-규칙 내부는 다시 formatCss 함수로 재귀 호출 (들여쓰기 적용)
+                    const innerFormatted = formatCss(propertiesString, options, currentIndentLevel);
+                    if (innerFormatted.trim()) {
+                        output.push(innerFormatted);
+                    }
+                    currentIndentLevel--;
+                    output.push(BASE_INDENT.repeat(currentIndentLevel) + '}');
+                } else {
+                    // 일반 CSS 규칙 (속성은 모두 한 줄로)
+                    let formattedProperties = propertiesString
+                        .replace(/\s*:\s*/g, ': ') // 콜론 주변 공백 정리
+                        .replace(/\s*;\s*/g, ';')   // 세미콜론 주변 공백 정리 (뒤 공백 제거)
+                        .replace(/;(?=\S)/g, '; ') // 세미콜론 뒤에 문자가 바로 오면 공백 추가 (예: `prop1;prop2` -> `prop1; prop2`)
+                        .trim();
+
+                    // 마지막 세미콜론 제거 (선택 사항, 통일성을 위해)
+                    if (formattedProperties.endsWith(';')) {
+                        formattedProperties = formattedProperties.slice(0, -1);
+                    }
+
+                    if (!formattedProperties) {
+                        openBraceInside = ''; // 속성이 없으면 안쪽 공백도 없앰
+                        closeBraceInside = '';
+                    }
+
+                    output.push(BASE_INDENT.repeat(currentIndentLevel) + selector + braceSpace + '{' + openBraceInside + formattedProperties + closeBraceInside + '}');
+                }
+                prevTokenWasRule = true;
+            } else {
+                // 예상치 못한 텍스트 (줄바꿈 등)
+                // 토큰으로 인식되지 않은 남은 부분은 그대로 출력하고 줄바꿈 추가
+                if (token.value.trim().length > 0) {
+                    if (output.length > 0 && !output[output.length - 1].endsWith('\n')) {
+                        output.push('\n');
+                    }
+                    output.push(BASE_INDENT.repeat(currentIndentLevel) + token.value.trim());
+                } else if (leadingWhitespaceMatch && leadingWhitespaceMatch[0].includes('\n') && output.length > 0 && !output[output.length-1].endsWith('\n')) {
+                    // 순수하게 줄바꿈만 있는 경우, 빈 줄 추가
+                    output.push('\n');
+                }
+                prevTokenWasRule = false;
+            }
+            charIndex += token.length;
         }
 
-        inputCss.addEventListener('input', handleFormatting);
-        copyBtn.addEventListener('click', copyToClipboard);
+        // 최종 결과물에서 불필요한 빈 줄을 압축하고, trim
+        // 연속된 여러 줄바꿈을 최대 두 개로 제한 (주석 사이의 빈 줄 유지를 위함)
+        return output.join('').replace(/\n\s*\n/g, '\n\n').replace(/\n\n\n+/g, '\n\n').trim();
+    }
 
-    </script>
+
+    function copyToClipboard() {
+        const textToCopy = outputCss.value;
+        if (!textToCopy) return;
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        textArea.style.position = "fixed";
+        textArea.style.top = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '복사 완료!';
+            copyBtn.style.backgroundColor = 'var(--copy-success-bg)';
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+                copyBtn.style.backgroundColor = 'var(--copy-btn-bg)';
+            }, 2000);
+        } catch (err) {
+            console.error('클립보드 복사에 실패했습니다:', err);
+        }
+        document.body.removeChild(textArea);
+    }
+    
+    function toggleCommentNewlineOption() {
+        const keepComments = keepCommentsCheckbox.checked;
+        commentNewlineCheckbox.disabled = !keepComments;
+        commentNewlineCheckbox.parentElement.classList.toggle('disabled', !keepComments);
+        handleFormatting();
+    }
+
+    inputCss.addEventListener('input', handleFormatting);
+    copyBtn.addEventListener('click', copyToClipboard);
+    spaceInsideBracesCheckbox.addEventListener('change', handleFormatting);
+    keepCommentsCheckbox.addEventListener('change', toggleCommentNewlineOption);
+    commentNewlineCheckbox.addEventListener('change', handleFormatting);
+    spaceBeforeBraceCheckbox.addEventListener('change', handleFormatting);
+
+    toggleCommentNewlineOption();
+</script>
 
 </body>
 </html>
