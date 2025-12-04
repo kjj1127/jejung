@@ -169,7 +169,7 @@ function showCharacterSelect() {
         let data = JOB_DATA[j];
         html += `<div class="char-card" onclick="showCharacterDetail('${j}')">
                     <h3>${data.name.toUpperCase()}</h3>
-                    <img src="/img/${data.name}.png" alt="${data.name}">
+                    <img src="./img/${data.name}.png" alt="${data.name}">
                     <p style="${colorStyle} margin-top:10px;">최고 기록: ${displayRecord}</p>
                  </div>`; 
     });
@@ -184,7 +184,7 @@ function showCharacterDetail(jobKey) {
     $("#char-selection-view").hide();
     $("#char-detail-view").css("display", "flex");
     
-    $("#detail-img").attr("src", `/img/${data.name}.png`);
+    $("#detail-img").attr("src", `./img/${data.name}.png`);
     $("#detail-name").text(data.name.toUpperCase());
     
     let basicAtkInfo = (jobKey === 'warrior' || jobKey === 'rogue') ? '공격력 × 0.8' : (jobKey === 'mage' ? '공격력 × 0.7' : '(공격력 × 0.35)×3타');
@@ -255,8 +255,8 @@ function loadEnemy(floor) {
     if (floor > 20) { alert("클리어!"); localStorage.removeItem(SAVE_KEY); location.reload(); return; }
     const data = enemiesData.find(e => e.floor === floor);
     enemy = JSON.parse(JSON.stringify(data));
-    $("#enemy-img").attr("src", `/img/${enemy.name}.png`);
-    $("#player-img").attr("src", `/img/${player.name}.png`);
+    $("#enemy-img").attr("src", `./img/${enemy.name}.png`);
+    $("#player-img").attr("src", `./img/${player.name}.png`);
     $("#current-floor").text("Floor: " + floor);
     $("#enemy-name-disp").text(enemy.name);
     $("#player-job-disp").text(player.name);
