@@ -1,1 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TBS Dungeon Game</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body>
 
+    <!-- 1. 메인 메뉴 -->
+    <div id="main-menu">
+        <h1 class="game-title">DUNGEON TBS</h1>
+        <div class="menu-record">최고 기록: <span id="max-record">0</span></div>
+        
+        <div class="game-story" style="display: none;">
+            <h3>Role</h3>
+            <p>마왕이 지배하는 20층 탑을 정복하세요.</p>
+            <p>턴제 전략으로 적의 공격을 방어하고,</p>
+            <p>스킬과 평타를 섞어 적을 쓰러뜨리세요.</p>
+            <br>
+            <p>층 클리어 시 체력과 마나를 일부 회복하며 랜덤한 스탯 보상을 두가지 선택할 수 있습니다<br/>
+            [공격]<br/>
+            적에게 피해를 입히는 기본공격과 스킬이 있으며 모든 피해는 치명타 확률이 적용됩니다.<br/>
+            [방어]<br/>
+            최대 3스택까지 쌓을 수 있으며, 방어를 사용하지 않은 턴에서 1스택씩 쌓을 수 있습니다.<br/>
+            기본공격과 스킬의 피해를 막을 수 있습니다.(필중 효과 제외)<br/>
+            [회복]<br/>
+            마나 3을 소모하여 체력을 회복할 수 있습니다.<br/>
+            mage는 더 많은 체력을 회복합니다.</p>
+        </div>
+        <button class="menu-btn" id="btn-role">게임설명</button>
+        <button class="menu-btn" id="btn-continue" disabled>이어 하기</button>
+        <button class="menu-btn" id="btn-newgame">새로 하기</button>
+        <button class="menu-btn danger" id="btn-reset-all">데이터 초기화</button>
+    </div>
+
+    <!-- 2. 캐릭터 선택 화면 (개편됨) -->
+    <div id="char-select-screen" style="display:none;">
+        
+        <!-- (1) 캐릭터 그리드 뷰 -->
+        <div id="char-selection-view">
+            <h2 class="select-title">운명을 함께할 영웅을 선택하세요</h2>
+            <div id="char-grid-container">
+                <!-- JS로 카드 생성됨 -->
+            </div>
+            <button id="btn-back-menu" class="menu-btn" style="width: 200px; margin-top: 30px;">메인으로</button>
+        </div>
+
+        <!-- (2) 좌우 분할 상세 뷰 -->
+        <div id="char-detail-view" style="display:none;">
+            <!-- 좌측: 캐릭터 이미지 -->
+            <div class="detail-left">
+                <img id="detail-img" src="" alt="Character">
+                <h2 id="detail-name">Name</h2>
+            </div>
+            <!-- 우측: 정보 및 버튼 -->
+            <div class="detail-right">
+                <div id="detail-content">
+                    <!-- JS로 내용 채움 -->
+                </div>
+                <div class="detail-btn-group">
+                    <button id="btn-detail-back" class="menu-btn">다른 직업 선택</button>
+                    <button id="btn-start-game" class="menu-btn" style="background: linear-gradient(135deg, #f1c40f, #d35400); color:#2c3e50;">게임 시작</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 3. 인게임 화면 -->
+    <div id="game-wrapper" style="display:none;">
+        
+        <!-- [좌측] 게임 메인 영역 -->
+        <div id="game-main-area">
+            <div id="header-info">
+                <button id="btn-go-main">◀ 메인</button>
+                <span id="current-floor">Floor: 1</span>
+                <div style="width:80px;"></div>
+            </div>
+
+            <div id="battle-field">
+                <!-- 왼쪽: 플레이어 스탯 -->
+                <div class="stat-panel" id="player-stats">
+                    <h3>PLAYER</h3>
+                    <div class="bar-container">
+                        <div class="bar-fill hp" id="p-hp-bar" style="width: 100%;"></div>
+                        <div class="bar-text"><span id="p-hp">0</span> / <span id="p-max-hp">0</span></div>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-fill mp" id="p-mp-bar" style="width: 100%;"></div>
+                        <div class="bar-text"><span id="p-mp">0</span> / <span id="p-max-mp">0</span></div>
+                    </div>
+                    <div class="stat-detail">
+                        공격력: <span id="p-atk">0</span> | 스피드: <span id="p-spd">0</span><br>
+                        치명율: <span id="p-cri">0</span>% | 회피율: <span id="p-avd">0</span>%<br>
+                        <span class="regen-info">HP회복: +<span id="p-hp-regen">0</span> | MP회복: +<span id="p-mp-regen">0</span></span>
+                    </div>
+                </div>
+
+                <!-- 중앙: 캐릭터 -->
+                <div id="center-stage">
+                    <div id="enemy-sprite-area">
+                        <div class="name-tag" id="enemy-name-disp">Enemy</div>
+                        <img id="enemy-img" src="" alt="적">
+                    </div>
+                    <div id="player-sprite-area">
+                        <img id="player-img" src="" alt="나">
+                        <div class="name-tag" id="player-job-disp">Job</div>
+                    </div>
+                </div>
+
+                <!-- 오른쪽: 적 스탯 -->
+                <div class="stat-panel" id="enemy-stats">
+                    <h3>ENEMY</h3>
+                    <div class="bar-container">
+                        <div class="bar-fill hp" id="e-hp-bar" style="width: 100%;"></div>
+                        <div class="bar-text"><span id="e-hp">0</span> / <span id="e-max-hp">0</span></div>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-fill mp" id="e-mp-bar" style="width: 100%;"></div>
+                        <div class="bar-text"><span id="e-mp">0</span> / <span id="e-max-mp">0</span></div>
+                    </div>
+                    <div class="stat-detail">
+                        공격력: <span id="e-atk">0</span> | 스피드: <span id="e-spd">0</span><br>
+                        치명율: <span id="e-cri">0</span>% | 회피율: <span id="e-avd">0</span>%<br>
+                        <span class="regen-info">HP회복: +<span id="e-hp-regen">0</span> | MP회복: +<span id="e-mp-regen">0</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 액션 패널 -->
+            <div id="action-panel">
+                <button class="action-btn btn-atk" id="btn-attack" title="기본 공격&#10;MP 소모 없음">⚔️ 공격</button>
+                <button class="action-btn btn-skill" id="btn-skill-1" title="스킬1">스킬1</button>
+                <button class="action-btn btn-skill" id="btn-skill-2" title="스킬2">스킬2</button>
+                <button class="action-btn btn-def" id="btn-defend" title="적의 공격을 방어하여&#10;피해를 무효화합니다." style="grid-column: span 1.5;">🛡️ 방어</button>
+                <button class="action-btn btn-heal" id="btn-heal" title="MP 3 소모&#10;체력을 회복합니다." style="grid-column: span 1.5;">💊 회복</button>
+            </div>
+        </div>
+
+        <!-- [우측] 로그 영역 -->
+        <div id="game-log-area">
+            <div id="log-header">Battle Log</div>
+            <div id="game-log"></div>
+        </div>
+
+        <!-- 보상 팝업 -->
+        <div id="reward-overlay" style="display:none;">
+            <div class="reward-modal">
+                <h3>클리어 보상 (2개 선택)</h3>
+                <div id="reward-options"></div>
+                <button id="btn-reward-confirm" class="menu-btn" disabled>선택 완료</button>
+            </div>
+        </div>
+
+    </div>
+    <script>
+        $('#btn-role').on('click', function () {
+            const story = $('.game-story');
+            const isOpen = story.is(':visible');
+
+            if (isOpen) {
+                story.hide();
+                $(this).text('게임설명');
+            } else {
+                story.show();
+                $(this).text('게임설명 닫기');
+            }
+        });
+    </script>
+    <script src="enemies.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
