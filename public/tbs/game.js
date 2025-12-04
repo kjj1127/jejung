@@ -146,8 +146,8 @@ function continueGame() {
     if (player.job === "mage") battleState.mageStack = player.savedMageStack || 0; 
     $("#main-menu").hide(); $("#game-wrapper").show(); loadEnemy(gameData.floor);
 }
-function resetAllData() { if(confirm("전체 삭제?")) { localStorage.clear(); location.reload(); } }
-function goToMainMenu() { if(confirm("메인으로?")) { $("#game-wrapper").hide(); $("#main-menu").show(); checkMainMenu(); } }
+function resetAllData() { if(confirm("데이터를 초기화하시겠습니까?")) { localStorage.clear(); location.reload(); } }
+function goToMainMenu() { if(confirm("메인으로 이동하시겠습니까?")) { $("#game-wrapper").hide(); $("#main-menu").show(); checkMainMenu(); } }
 
 function showCharacterSelect() {
     $("#main-menu").hide(); 
@@ -187,8 +187,8 @@ function showCharacterDetail(jobKey) {
     $("#detail-img").attr("src", `./img/${data.name}.webp`);
     $("#detail-name").text(data.name.toUpperCase());
     
-    let basicAtkInfo = (jobKey === 'warrior' || jobKey === 'rogue') ? '공격력 × 0.8' : (jobKey === 'mage' ? '공격력 × 0.7' : '(공격력 × 0.35)×3타');
-    let healSkillInfo = (jobKey === 'mage' ? '최대체력 × 0.3' : '최대체력 × 0.1');
+    let basicAtkInfo = (jobKey === 'warrior' || jobKey === 'rogue') ? '공격력 × 0.3' : (jobKey === 'mage' ? '공격력 × 0.2' : '(공격력 × 0.1)×3타');
+    let healSkillInfo = (jobKey === 'mage' ? '최대체력 × 0.4' : '최대체력 × 0.2');
     
     let html = `
         <div class="detail-stat-box">
