@@ -15,12 +15,13 @@ const SAVE_KEY = "tbs_game_save";
 let selectedRewards = [];
 let currentRewardOptions = [];
 
+// 직업별 기본 스탯 및 스킬 정보 (INFO 창 표시용)
 const JOB_DATA = {
     "warrior": { 
         name: "warrior", hp: 200, maxHp: 200, mp: 10, maxMp: 10, atk: 30, crit: 5, avoid: 5, speed: 10, hpRegen: 13, mpRegen: 1, 
         skills: [
             { name: "정당방위", cost: 5, desc: "[MP 5] 태세 전환\n공격 받으면: (반감된 피해) + 기본공격 반격\n공격 안 받으면: 0 + 기본공격 피해" },
-            { name: "강타", cost: 4, desc: "[MP 4] 강력한 일격\n기본 공격의 2.5배 피해를 입힙니다." }
+            { name: "강타", cost: 4, desc: "[MP 4] 강력한 일격\n기본 공격의 2배 피해를 입힙니다." }
         ] 
     },
     "rogue": { 
@@ -121,7 +122,6 @@ function checkMainMenu() {
     let max = 0;
     Object.values(records).forEach(v => { if(v > max) max = v; });
     
-    // [수정] 21 이상이면 CLEAR, 아니면 -1 층 표시
     if (max > 20) {
         $("#max-record").text("CLEAR").css("color", "#f1c40f");
     } else {
@@ -146,8 +146,8 @@ function continueGame() {
     if (player.job === "mage") battleState.mageStack = player.savedMageStack || 0; 
     $("#main-menu").hide(); $("#game-wrapper").show(); loadEnemy(gameData.floor);
 }
-function resetAllData() { if(confirm("데이터를 초기화하시겠습니까?")) { localStorage.clear(); location.reload(); } }
-function goToMainMenu() { if(confirm("메인으로 이동하시겠습니까?")) { $("#game-wrapper").hide(); $("#main-menu").show(); checkMainMenu(); } }
+function resetAllData() { if(confirm("전체 삭제?")) { localStorage.clear(); location.reload(); } }
+function goToMainMenu() { if(confirm("메인으로?")) { $("#game-wrapper").hide(); $("#main-menu").show(); checkMainMenu(); } }
 
 function showCharacterSelect() {
     $("#main-menu").hide(); 
@@ -162,14 +162,13 @@ function showCharacterSelect() {
     let html = ``;
     jobs.forEach(j => { 
         let rawRecord = records[j] || 0;
-        // [수정] 21 이상이면 CLEAR 표시
         let displayRecord = (rawRecord > 20) ? "CLEAR" : (Math.max(0, rawRecord - 1) + "층");
         let colorStyle = (rawRecord > 20) ? "color:#f1c40f; font-weight:bold;" : "color:#bdc3c7;";
 
         let data = JOB_DATA[j];
         html += `<div class="char-card" onclick="showCharacterDetail('${j}')">
                     <h3>${data.name.toUpperCase()}</h3>
-                    <img src="./img/${data.name}.webp" alt="${data.name}">
+                    <img src="/img/${data.name}.png" alt="${data.name}">
                     <p style="${colorStyle} margin-top:10px;">최고 기록: ${displayRecord}</p>
                  </div>`; 
     });
@@ -184,10 +183,10 @@ function showCharacterDetail(jobKey) {
     $("#char-selection-view").hide();
     $("#char-detail-view").css("display", "flex");
     
-    $("#detail-img").attr("src", `./img/${data.name}.webp`);
+    $("#detail-img").attr("src", `/img/${data.name}.png`);
     $("#detail-name").text(data.name.toUpperCase());
     
-    let basicAtkInfo = (jobKey === 'warrior' || jobKey === 'rogue') ? '공격력 × 0.3' : (jobKey === 'mage' ? '공격력 × 0.2' : '(공격력 × 0.1)×3타');
+    let basicAtkInfo = (jobKey === 'warrior' || jobKey === 'rogue') ? '10 + (공격력 × 0.3)' : (jobKey === 'mage' ? '10 + (공격력 × 0.2)' : '(3 + (공격력 × 0.1))×3타');
     let healSkillInfo = (jobKey === 'mage' ? '최대체력 × 0.4' : '최대체력 × 0.2');
     
     let html = `
@@ -198,8 +197,7 @@ function showCharacterDetail(jobKey) {
             <div class="detail-stat-row"><span>⚡ 스피드</span> <span>${data.speed}</span></div>
             <div class="detail-stat-row"><span>🛡 방어율</span> <span>${data.avoid}%</span></div>
             <div class="detail-stat-row"><span>💥 치명타</span> <span>${data.crit}%</span></div>
-            <div class="detail-stat-row"><span>✚ 체력회복</span> <span>${data.hpRegen}</span></div>
-            <div class="detail-stat-row"><span>✚ 마나회복</span> <span>${data.mpRegen}</span></div>
+            <div class="detail-stat-row"><span>✚ 리젠(HP/MP)</span> <span>${data.hpRegen} / ${data.mpRegen}</span></div>
         </div>
         <br/>
         <p><strong>[기본 공격]</strong> ${basicAtkInfo}</p>
@@ -255,8 +253,8 @@ function loadEnemy(floor) {
     if (floor > 20) { alert("클리어!"); localStorage.removeItem(SAVE_KEY); location.reload(); return; }
     const data = enemiesData.find(e => e.floor === floor);
     enemy = JSON.parse(JSON.stringify(data));
-    $("#enemy-img").attr("src", `./img/${enemy.name}.webp`);
-    $("#player-img").attr("src", `./img/${player.name}.webp`);
+    $("#enemy-img").attr("src", `/img/${enemy.name}.png`);
+    $("#player-img").attr("src", `/img/${player.name}.png`);
     $("#current-floor").text("Floor: " + floor);
     $("#enemy-name-disp").text(enemy.name);
     $("#player-job-disp").text(player.name);
@@ -291,8 +289,13 @@ function resetBattleState() {
     };
 }
 
+// =========================================================
+// [핵심] 턴 진행 로직 (Async)
+// =========================================================
 async function runTurn(playerAction) {
     if (gameData.isBattleOver || isAnimating) return;
+    
+    // 버튼 비활성화 상태 체크
     if (["skill1", "skill2", "heal"].includes(playerAction)) {
         let btnId = (playerAction === "heal") ? "#btn-heal" : (playerAction === "skill1" ? "#btn-skill-1" : "#btn-skill-2");
         if ($(btnId).prop("disabled")) return;
@@ -303,45 +306,59 @@ async function runTurn(playerAction) {
     if (!checkCostAndCooldown(playerAction)) return;
     
     try {
-        isAnimating = true; $(".action-btn").prop("disabled", true); 
+        isAnimating = true; 
+        $(".action-btn").prop("disabled", true); 
+        
         let pAct = { type: playerAction, priority: 0, speed: player.speed, actor: "player" };
         if (["defend", "heal"].includes(playerAction)) pAct.priority = 1;
+        
         battleState.playerDefending = (playerAction === "defend");
         battleState.warriorCounter = (player.job === "warrior" && playerAction === "skill1");
         battleState.sureShot = (player.job === "archer" && playerAction === "skill2");
 
+        // 적 AI 결정
         let eChoice = "attack";
-
         if (enemy.floor === 20) {
-            // 마왕 패턴
-            // 침묵: 30% 확률
+            // 마왕 패턴: 침묵(30%), 장막(15%), 방어(20%)
             if (enemy.mp >= 50 && battleState.playerSilence === 0 && Math.random() < 0.3) {
                 eChoice = "boss_skill_silence";
-            } 
-            // 장막: 15% 확률
-            else if (enemy.mp >= 30 && battleState.bossDmgCut === 0 && Math.random() < 0.15) {
+            } else if (enemy.mp >= 30 && battleState.bossDmgCut === 0 && Math.random() < 0.15) {
                 eChoice = "boss_skill_shield";
-            } 
-            else if (Math.random() < 0.2) eChoice = "defend";
+            } else if (Math.random() < 0.2) eChoice = "defend";
         } else {
             let enemyCanHeal = (enemy.mp >= 3) && (enemy.hp < enemy.maxHp * 0.9);
-            if (enemyCanHeal && Math.random() < 0.3) eChoice = "heal"; else if (Math.random() < 0.2) eChoice = "defend";
+            if (enemyCanHeal && Math.random() < 0.3) eChoice = "heal"; 
+            else if (Math.random() < 0.2) eChoice = "defend";
         }
 
         let eAct = { type: eChoice, priority: 0, speed: enemy.speed, actor: "enemy" };
         if (["defend", "heal", "boss_skill_shield", "boss_skill_silence"].includes(eChoice)) eAct.priority = 1;
         
+        // 선공 결정
         let first = pAct, second = eAct;
         if (eAct.priority > pAct.priority) { first = eAct; second = pAct; }
         else if (pAct.priority === eAct.priority && enemy.speed > player.speed) { first = eAct; second = pAct; }
 
         log(`--- 턴 시작 ---`);
+        
+        // 첫 번째 행동 실행 (여기서 await 사용)
         await executeAction(first, second);
-        if (player.hp > 0 && enemy.hp > 0) { await delay(500); await executeAction(second, first); }
-        await delay(500); await postTurnProcess(playerAction); 
+        
+        // 두 번째 행동 실행
+        if (player.hp > 0 && enemy.hp > 0) { 
+            await delay(500); 
+            await executeAction(second, first); 
+        }
+        
+        await delay(500); 
+        await postTurnProcess(playerAction); 
+        
         updateUI(); saveGame(); checkWinLoss();
-    } catch (error) { console.error(error); log("! 오류 발생"); } 
-    finally { isAnimating = false; updateButtonStates(); }
+    } catch (error) { 
+        console.error(error); log("! 오류 발생"); 
+    } finally { 
+        isAnimating = false; updateButtonStates(); 
+    }
 }
 
 function checkCostAndCooldown(action) {
@@ -361,6 +378,7 @@ function checkCostAndCooldown(action) {
     player.mp -= cost; return true;
 }
 
+// 데미지 계산 함수 (기본값 + 공격력*계수) -> 치명타 여부 리턴
 function calcDmg(base, atk, ratio, crit) {
     let d = base + (atk * ratio);
     let isCrit = false;
@@ -372,13 +390,20 @@ function calcDmg(base, atk, ratio, crit) {
 }
 function isHit(avoid) { return Math.random() * 100 >= avoid; }
 
+// =========================================================
+// [핵심] 행동 실행 및 데미지 공식 처리 (Async)
+// =========================================================
 async function executeAction(actObj, otherActObj) {
     if (player.hp <= 0 || enemy.hp <= 0) return;
+
     let actor = actObj.actor; let action = actObj.type; let me = (actor === "player") ? player : enemy;
     let isMyTurn = (actor === "player"); let nameTag = isMyTurn ? `[${player.name}]` : `[${enemy.name}]`;
     let isTargetDefending = isMyTurn ? battleState.enemyDefending : battleState.playerDefending;
     if (!isMyTurn && action === "defend") battleState.enemyDefending = true;
-    let warriorCounterTriggered = false; let dResult = { val:0, isCrit:false }; let msg = "";
+    
+    let warriorCounterTriggered = false; 
+    let dResult = { val:0, isCrit:false }; 
+    let msg = "";
 
     switch (action) {
         case "defend": 
@@ -386,11 +411,17 @@ async function executeAction(actObj, otherActObj) {
             if (isMyTurn) { player.defStacks--; log(`> 방어 스택 1 소모 (남은 스택: ${player.defStacks})`); }
             await triggerAnim(actor, "defend"); 
             break;
+        
         case "heal":
-            let ratio = (me.job === "mage") ? 0.3 : 0.1; let heal = Math.round(me.maxHp * ratio);
-            if (!isMyTurn && me.mp >= 3) me.mp -= 3; me.hp = Math.min(me.hp + heal, me.maxHp);
-            msg = `${nameTag} 체력 회복 (+${heal})`; await triggerAnim(actor, "heal"); 
-            showFloatingText(actor, `+${heal}`, "heal"); updateUI(); break;
+            // 마법사는 0.4, 그 외 0.2
+            let ratio = (me.job === "mage") ? 0.4 : 0.2; 
+            let heal = Math.round(me.maxHp * ratio);
+            if (!isMyTurn && me.mp >= 3) me.mp -= 3; 
+            me.hp = Math.min(me.hp + heal, me.maxHp);
+            msg = `${nameTag} 체력 회복 (+${heal})`; 
+            await triggerAnim(actor, "heal"); 
+            showFloatingText(actor, `+${heal}`, "heal"); updateUI(); 
+            break;
         
         case "boss_skill_shield":
             me.mp -= 30; battleState.bossDmgCut = 3;
@@ -405,8 +436,11 @@ async function executeAction(actObj, otherActObj) {
 
         case "attack": case "skill1": case "skill2":
             let animType = isMyTurn ? "attack-p" : "attack-e";
+            
+            // 1. 데미지 계산 전 특수 동작 (버프 등)
             if(action === "skill1" && isMyTurn && player.job==="mage") {
-                battleState.mageStack++; msg = `마력 응축 (${battleState.mageStack})`; await triggerAnim(actor, "heal");
+                battleState.mageStack++; msg = `마력 응축 (${battleState.mageStack})`; 
+                await triggerAnim(actor, "heal");
             } else if (action === "skill1" && isMyTurn && player.job==="rogue") {
                  battleState.rogueStealthTurns = 3; battleState.rogueStealthCooldown = 3; 
                  player.avoid+=30; player.speed+=30; 
@@ -415,35 +449,66 @@ async function executeAction(actObj, otherActObj) {
                 msg = "정당방위 태세!"; await triggerAnim(actor, "defend");
             } else if (action === "skill1" && isMyTurn && player.job==="archer") {
                 log(`[궁수] 마법화살 시전! (3연사 발동)`); await executeArcherMultiHit(true); 
-                battleState.archerBuffTurns = 3; battleState.archerSkill1Cooldown = 5; return;
+                battleState.archerBuffTurns = 3; battleState.archerSkill1Cooldown = 5; 
+                return; // 궁수는 연타 함수에서 처리 후 종료
             } else {
+                // 궁수 기본공격/스킬2 처리
                 if (isMyTurn && player.job === "archer" && (action === "attack" || action === "skill2")) {
-                    let isSkill2 = (action === "skill2"); let skillMsg = isSkill2 ? "[명중] 필중 사격!" : "3연사 발동!";
-                    log(skillMsg); await executeArcherMultiHit(false, isSkill2); return; 
+                    let isSkill2 = (action === "skill2"); 
+                    let skillMsg = isSkill2 ? "[명중] 필중 사격!" : "3연사 발동!";
+                    log(skillMsg); 
+                    await executeArcherMultiHit(false, isSkill2); 
+                    return; // 궁수는 연타 함수에서 처리 후 종료
                 }
+                
                 await triggerAnim(actor, animType);
+                
+                // 2. 데미지 계산 (전사, 도적, 마법사)
                 if(action === "attack") {
                      if(isMyTurn && player.job==="mage" && battleState.mageStack > 0) { 
-                         let base = me.atk * 0.7; 
-                         dResult.val = Math.round(base * battleState.mageStack * 2.5); 
+                         // [마법사] 익스플로전: 기본공격뎀(10+0.2atk) * 스택 * 1.2
+                         let base = 10 + (me.atk * 0.2); 
+                         dResult.val = Math.round(base * battleState.mageStack * 1.2); 
                          dResult.isCrit = false; 
                          battleState.mageStack=0; msg=`익스플로전!`; 
                      } else { 
+                         // [기본 공격]
+                         // 전사, 도적: 10 + 0.3 * atk
+                         // 마법사: 10 + 0.2 * atk
+                         // 적: 0 + 0.9 * atk (기존 유지)
                          let base = 0;
-                         let scale = isMyTurn ? 0.8 : 0.9; 
-                         if(isMyTurn && player.job==="mage") scale = 0.7; 
-
-                         dResult = calcDmg(base, me.atk, scale, me.crit); msg = `기본 공격`; 
+                         let scale = 0.9;
+                         
+                         if (isMyTurn) {
+                             base = 10;
+                             if (player.job === "mage") scale = 0.2;
+                             else scale = 0.3; // 전사, 도적
+                         }
+                         
+                         dResult = calcDmg(base, me.atk, scale, me.crit); 
+                         msg = `기본 공격`; 
                      }
                 } else if (action === "skill2") {
                      if(isMyTurn && player.job==="warrior") { 
-                         dResult = calcDmg(0, me.atk, 0.8, me.crit); dResult.val = Math.round(dResult.val * 2.5); msg="강타!"; 
+                         // [전사] 강타: 기본공격피해량 * 2
+                         let baseRes = calcDmg(10, me.atk, 0.3, me.crit); 
+                         dResult.val = Math.round(baseRes.val * 2); 
+                         dResult.isCrit = baseRes.isCrit;
+                         msg="강타!"; 
                      }
                      if(isMyTurn && player.job==="rogue") { 
-                         dResult = calcDmg(0, me.atk, 0.8, me.crit); dResult.val += me.speed; msg="기습!"; 
+                         // [도적] 기습: 기본공격피해량 + 스피드
+                         let baseRes = calcDmg(10, me.atk, 0.3, me.crit); 
+                         dResult.val = baseRes.val + me.speed; 
+                         dResult.isCrit = baseRes.isCrit;
+                         msg="기습!"; 
                      }
                      if(isMyTurn && player.job==="mage") { 
-                         dResult = calcDmg(0, me.atk, 1.5, me.crit); msg="에너지볼!"; 
+                         // [마법사] 에너지볼: 기본공격피해량 * 1.5
+                         let baseRes = calcDmg(10, me.atk, 0.2, me.crit); 
+                         dResult.val = Math.round(baseRes.val * 1.5); 
+                         dResult.isCrit = baseRes.isCrit;
+                         msg="에너지볼!"; 
                      }
                 }
             }
@@ -453,32 +518,46 @@ async function executeAction(actObj, otherActObj) {
     if (dResult.val > 0) {
         let dmg = dResult.val;
         let type = dResult.isCrit ? "crit" : "dmg";
-        let targetAvoid = isMyTurn ? enemy.avoid : player.avoid; let isSureShot = isMyTurn ? battleState.sureShot : false;
+        let targetAvoid = isMyTurn ? enemy.avoid : player.avoid; 
+        let isSureShot = isMyTurn ? battleState.sureShot : false;
         
-        if (!isSureShot && !isHit(targetAvoid)) { log(msg + " -> 빗나감!"); showFloatingText(isMyTurn ? "enemy" : "player", "MISS", "miss"); } 
+        if (!isSureShot && !isHit(targetAvoid)) { 
+            log(msg + " -> 빗나감!"); showFloatingText(isMyTurn ? "enemy" : "player", "MISS", "miss"); 
+        } 
         else if (isTargetDefending) { 
-            log(msg + " -> 방어됨 (0 피해)"); let targetActor = isMyTurn ? "enemy" : "player"; 
+            log(msg + " -> 방어됨 (0 피해)"); 
+            let targetActor = isMyTurn ? "enemy" : "player"; 
             await triggerAnim(targetActor, "defend"); showFloatingText(targetActor, "BLOCK", "block"); 
         } 
         else {
-            if (!isMyTurn && player.job === "mage" && otherActObj.type === "skill1") { dmg = Math.round(dmg * 0.5); msg += " (마력보호)"; }
+            if (!isMyTurn && player.job === "mage" && otherActObj.type === "skill1") { 
+                dmg = Math.round(dmg * 0.5); msg += " (마력보호)"; 
+            }
             
             if (isMyTurn) { 
+                // 내가 공격할 때: 마왕 장막 체크
                 if (battleState.bossDmgCut > 0) {
                     dmg = Math.round(dmg * 0.5);
                     msg += " (어둠의 장막: 피해 반감)";
                 }
-
-                enemy.hp = Math.max(0, enemy.hp - dmg); log(`${msg} -> 적에게 ${dmg} 피해.`); 
+                enemy.hp = Math.max(0, enemy.hp - dmg); 
+                log(`${msg} -> 적에게 ${dmg} 피해.`); 
                 await triggerAnim("enemy", "hit"); showFloatingText("enemy", dmg, type);
             } else {
+                 // 내가 공격 받을 때
                  if (player.job === "warrior" && battleState.warriorCounter) {
-                    warriorCounterTriggered = true; let reduced = Math.round(dmg * 0.5); player.hp = Math.max(0, player.hp - reduced);
-                    log(`${msg} -> 반격 발동! (${reduced} 피해만 입음)`); await triggerAnim("player", "hit"); showFloatingText("player", reduced, "dmg");
+                    // [전사] 정당방위: 필중반격 (기본공격뎀 + 받은피해)
+                    warriorCounterTriggered = true; 
+                    let reduced = Math.round(dmg * 0.5); 
+                    player.hp = Math.max(0, player.hp - reduced);
+                    log(`${msg} -> 반격 발동! (${reduced} 피해만 입음)`); 
+                    await triggerAnim("player", "hit"); showFloatingText("player", reduced, "dmg");
                     await delay(300); await triggerAnim("player", "attack-p"); 
                     
-                    let cntRes = calcDmg(0, player.atk, 0.8, player.crit); 
-                    let cnt = reduced + cntRes.val; 
+                    // 반격뎀 = 기본공격(10+0.3atk) + 받은뎀(reduced)
+                    let cntRes = calcDmg(10, player.atk, 0.3, player.crit); 
+                    let cnt = cntRes.val + reduced; 
+                    
                     if (battleState.bossDmgCut > 0) cnt = Math.round(cnt * 0.5);
 
                     enemy.hp = Math.max(0, enemy.hp - cnt); log(`> [반격] 적에게 ${cnt} 피해!`); 
@@ -491,9 +570,11 @@ async function executeAction(actObj, otherActObj) {
         }
     } else { if (msg) log(msg); }
 
+    // [전사] 정당방위 상태인데 공격 안 받았을 때 -> 추가타 발동
     if (!isMyTurn && player.job === "warrior" && battleState.warriorCounter && !warriorCounterTriggered) {
         await delay(300); log(`[전사] 빈틈을 노려 추가 공격!`); await triggerAnim("player", "attack-p");
-        let basicRes = calcDmg(0, player.atk, 0.8, player.crit); 
+        // 추가타 = 기본공격 데미지
+        let basicRes = calcDmg(10, player.atk, 0.3, player.crit); 
         let basicDmg = basicRes.val;
         if (battleState.bossDmgCut > 0) basicDmg = Math.round(basicDmg * 0.5); 
         
@@ -503,19 +584,30 @@ async function executeAction(actObj, otherActObj) {
     updateUI(); 
 }
 
+// [궁수 전용] 연타 처리 함수 (Async)
 async function executeArcherMultiHit(isMagicArrowTurn, isSkill2) {
     let totalDmg = 0;
+    
+    // 3연타: 기본 3 + 0.1 * atk
     for (let i = 1; i <= 3; i++) {
         if (enemy.hp <= 0) break;
         await triggerAnim("player", "attack-p", 150); 
-        let shotRes = calcDmg(0, player.atk, 0.35, player.crit);
-        let hit = true; if (isSkill2) hit = true; else hit = isHit(enemy.avoid);
+        let shotRes = calcDmg(3, player.atk, 0.1, player.crit);
+        
+        let hit = true; 
+        if (isSkill2) hit = true; // 명중 스킬은 필중
+        else hit = isHit(enemy.avoid);
 
         if (hit) {
-            if (battleState.enemyDefending && !isSkill2) { log(`> [${i}타] 방어됨.`); showFloatingText("enemy", "BLOCK", "block"); } 
-            else {
+            // 명중 스킬은 방어 무시
+            if (battleState.enemyDefending && !isSkill2) { 
+                log(`> [${i}타] 방어됨.`); showFloatingText("enemy", "BLOCK", "block"); 
+            } else {
                 let finalDmg = shotRes.val; 
+                
+                // [명중] 적이 방어 안했으면 데미지 2배
                 if (isSkill2 && !battleState.enemyDefending) finalDmg *= 2;
+                
                 if (battleState.bossDmgCut > 0) finalDmg = Math.round(finalDmg * 0.5);
 
                 enemy.hp = Math.max(0, enemy.hp - finalDmg);
@@ -524,12 +616,16 @@ async function executeArcherMultiHit(isMagicArrowTurn, isSkill2) {
                 showFloatingText("enemy", finalDmg, shotRes.isCrit ? "crit" : "dmg");
                 totalDmg += finalDmg;
             }
-        } else { log(`> [${i}타] 빗나감!`); showFloatingText("enemy", "MISS", "miss"); }
+        } else { 
+            log(`> [${i}타] 빗나감!`); showFloatingText("enemy", "MISS", "miss"); 
+        }
         await delay(100);
     }
+    
+    // [마법화살] 추가타: 기본공격 총 피해량 * 0.7
     if (isMagicArrowTurn || battleState.archerBuffTurns > 0) {
         if (enemy.hp > 0 && totalDmg > 0) {
-            let magicDmg = Math.round(totalDmg * 0.3); 
+            let magicDmg = Math.round(totalDmg * 0.7); 
             if (battleState.bossDmgCut > 0) magicDmg = Math.round(magicDmg * 0.5);
             enemy.hp = Math.max(0, enemy.hp - magicDmg);
             log(`> [마법화살] 추가 ${magicDmg} 피해!`); await triggerAnim("enemy", "hit", 200); showFloatingText("enemy", magicDmg, "dmg");
@@ -640,7 +736,6 @@ function checkWinLoss() {
         if (player.job === "rogue" && battleState.rogueStealthTurns > 0) { player.avoid -= 30; player.speed -= 30; log("! 전투 승리로 은신 해제 (스탯 복구)"); }
         player.savedMageStack = battleState.mageStack; 
 
-        // [수정] 20층 클리어 시 기록을 21로 저장 (완전 클리어 구분)
         if (gameData.floor === 20) {
             saveMaxRecord(21);
             localStorage.removeItem(SAVE_KEY);
