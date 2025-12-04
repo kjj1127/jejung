@@ -168,7 +168,7 @@ function showCharacterSelect() {
         let data = JOB_DATA[j];
         html += `<div class="char-card" onclick="showCharacterDetail('${j}')">
                     <h3>${data.name.toUpperCase()}</h3>
-                    <img src="/img/${data.name}.png" alt="${data.name}">
+                    <img src="/img/${data.name}.webp" alt="${data.name}">
                     <p style="${colorStyle} margin-top:10px;">최고 기록: ${displayRecord}</p>
                  </div>`; 
     });
@@ -183,7 +183,7 @@ function showCharacterDetail(jobKey) {
     $("#char-selection-view").hide();
     $("#char-detail-view").css("display", "flex");
     
-    $("#detail-img").attr("src", `/img/${data.name}.png`);
+    $("#detail-img").attr("src", `/img/${data.name}.webp`);
     $("#detail-name").text(data.name.toUpperCase());
     
     let basicAtkInfo = (jobKey === 'warrior' || jobKey === 'rogue') ? '10 + (공격력 × 0.3)' : (jobKey === 'mage' ? '10 + (공격력 × 0.2)' : '(3 + (공격력 × 0.1))×3타');
@@ -253,8 +253,8 @@ function loadEnemy(floor) {
     if (floor > 20) { alert("클리어!"); localStorage.removeItem(SAVE_KEY); location.reload(); return; }
     const data = enemiesData.find(e => e.floor === floor);
     enemy = JSON.parse(JSON.stringify(data));
-    $("#enemy-img").attr("src", `/img/${enemy.name}.png`);
-    $("#player-img").attr("src", `/img/${player.name}.png`);
+    $("#enemy-img").attr("src", `/img/${enemy.name}.webp`);
+    $("#player-img").attr("src", `/img/${player.name}.webp`);
     $("#current-floor").text("Floor: " + floor);
     $("#enemy-name-disp").text(enemy.name);
     $("#player-job-disp").text(player.name);
@@ -825,16 +825,4 @@ function showGameClearPopup() {
                 최종 직업: <strong style="color:#fff; font-size:1.1em;">${player.name.toUpperCase()}</strong>
             </p>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; color:#ecf0f1;">
-                <span>❤ 체력: ${player.maxHp}</span>
-                <span>💧 마나: ${player.maxMp}</span>
-                <span>⚔ 공격력: ${player.atk}</span>
-                <span>⚡ 스피드: ${player.speed}</span>
-                <span>💥 치명타: ${player.crit}%</span>
-                <span>🛡 회피율: ${player.avoid}%</span>
-            </div>
-        </div>
-        <button class="menu-btn" onclick="location.reload()" style="margin-top:20px; background:#f39c12; color:#2c3e50;">메인으로 돌아가기</button>
-    `;
-    $(".reward-modal").html(html);
-    $("#reward-overlay").show();
-}
+            
