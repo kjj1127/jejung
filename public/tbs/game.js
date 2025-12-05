@@ -20,22 +20,22 @@ const JOB_DATA = {
     "warrior": { 
         name: "warrior", hp: 200, maxHp: 200, mp: 10, maxMp: 10, atk: 30, crit: 5, avoid: 5, speed: 10, hpRegen: 13, mpRegen: 1, 
         skills: [
-            { name: "정당방위", cost: 5, desc: "[MP 5] 태세 전환\n공격 받으면: (반감된 피해) + 기본공격 반격\n공격 안 받으면: 0 + 기본공격 피해" },
-            { name: "강타", cost: 4, desc: "[MP 4] 강력한 일격\n기본 공격의 2배 피해를 입힙니다." }
+            { name: "정당방위", cost: 5, desc: "[MP 5] 해당 턴 피해를 50% 감소시킵니다.\n기본공격 + 받은피해량만큼 피해를 줍니다." },
+            { name: "강타", cost: 4, desc: "[MP 4] 기본 공격의 2배 피해를 입힙니다." }
         ] 
     },
     "rogue": { 
         name: "rogue", hp: 130, maxHp: 130, mp: 10, maxMp: 10, atk: 20, crit: 10, avoid: 15, speed: 25, hpRegen: 8, mpRegen: 1, 
         skills: [
-            { name: "은신", cost: 7, desc: "[MP 7] 3턴간 회피/속도 +30\n회피 성공 시 자동 반격합니다." },
-            { name: "기습", cost: 3, desc: "[MP 3] 빠른 공격\n기본 공격 + 스피드만큼 추가 피해" }
+            { name: "은신", cost: 7, desc: "[MP 7] 은신하여 3턴간 회피율과 스피드를 30만큼 증가시킵니다" },
+            { name: "기습", cost: 3, desc: "[MP 3] 기본 공격 + 스피드만큼 추가 피해" }
         ] 
     },
     "mage": { 
         name: "mage", hp: 100, maxHp: 100, mp: 30, maxMp: 30, atk: 15, crit: 5, avoid: 10, speed: 13, hpRegen: 8, mpRegen: 3, 
         skills: [
-            { name: "익스플로전", cost: 5, desc: "[MP 5] 마력 응축 (스택+1)\n해당 턴 피해 50% 감소.\n기본 공격 시 스택 소모하여 폭발 피해." },
-            { name: "에너지볼", cost: 5, desc: "[MP 5] 마법 구체\n적에게 강력한 피해를 입힙니다." }
+            { name: "익스플로전", cost: 5, desc: "[MP 5] 마력을 응축하여 스택을 쌓고 해당 턴에 피해를 50% 감소시킵니다.\n기본 공격 시 스택을 모두 소모하여 폭발 피해를 줍니다." },
+            { name: "에너지볼", cost: 5, desc: "[MP 5] 적에게 강력한 피해를 입힙니다." }
         ] 
     },
     "archer": { 
@@ -825,4 +825,16 @@ function showGameClearPopup() {
                 최종 직업: <strong style="color:#fff; font-size:1.1em;">${player.name.toUpperCase()}</strong>
             </p>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; color:#ecf0f1;">
-            
+                <span>❤ 체력: ${player.maxHp}</span>
+                <span>💧 마나: ${player.maxMp}</span>
+                <span>⚔ 공격력: ${player.atk}</span>
+                <span>⚡ 스피드: ${player.speed}</span>
+                <span>💥 치명타: ${player.crit}%</span>
+                <span>🛡 회피율: ${player.avoid}%</span>
+            </div>
+        </div>
+        <button class="menu-btn" onclick="location.reload()" style="margin-top:20px; background:#f39c12; color:#2c3e50;">메인으로 돌아가기</button>
+    `;
+    $(".reward-modal").html(html);
+    $("#reward-overlay").show();
+}
