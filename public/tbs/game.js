@@ -622,10 +622,10 @@ async function executeArcherMultiHit(isMagicArrowTurn, isSkill2) {
         await delay(100);
     }
     
-    // [마법화살] 추가타: 기본공격 총 피해량 * 0.7
+    // [마법화살] 추가타: 기본공격 총 피해량 * 0.2
     if (isMagicArrowTurn || battleState.archerBuffTurns > 0) {
         if (enemy.hp > 0 && totalDmg > 0) {
-            let magicDmg = Math.round(totalDmg * 0.7); 
+            let magicDmg = Math.round(totalDmg * 0.2); 
             if (battleState.bossDmgCut > 0) magicDmg = Math.round(magicDmg * 0.5);
             enemy.hp = Math.max(0, enemy.hp - magicDmg);
             log(`> [마법화살] 추가 ${magicDmg} 피해!`); await triggerAnim("enemy", "hit", 200); showFloatingText("enemy", magicDmg, "dmg");
